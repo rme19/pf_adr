@@ -5,90 +5,113 @@ from std_msgs.msg import Float64
 from geometry_msgs.msg import PoseStamped, PoseArray, Pose
 import numpy as np
 
-class BeaconEstimator(Node):
+class BeaconParticleFilter(Node):
     def __init__(self):
         super().__init__('beacon_particle_filter')
 
-        self.declare_parameter('num_particles', 200)
-        self.declare_parameter('init_spread', 10.0)
-
+        # Parámetros configurables
+        self.declare_parameter('num_particles', 1000)
         self.num_particles = self.get_parameter('num_particles').value
-        self.spread = self.get_parameter('init_spread').value
+        self.declare_parameter('sigma', 0.02)  # Desviación estándar para la medición de distancia
+        self.sigma = self.get_parameter('sigma').value
 
-        self.particles = np.random.uniform(-self.spread, self.spread, (self.num_particles, 2))  # (x, y)
+        self.particles = self.initialize_particles()
         self.weights = np.ones(self.num_particles) / self.num_particles
 
-        self.drone_position = None
-        self.measured_distance = None
+        self.current_drone_position = None
+        self.current_distance = None
 
+        # Subscripciones
         self.create_subscription(Odometry, '/simple_drone/odom', self.odom_callback, 10)
         self.create_subscription(Float64, '/distance_to_target', self.distance_callback, 10)
 
+        # Publicadores para RViz
         self.pose_pub = self.create_publisher(PoseStamped, '/pf/beacon_estimate', 10)
         self.particles_pub = self.create_publisher(PoseArray, '/pf/particles', 10)
 
-        self.timer = self.create_timer(0.1, self.update)
+        self.timer = self.create_timer(0.1, self.update_filter)
+        self.get_logger().info('Filtro de partículas para estimar baliza inicializado.')
 
-        self.get_logger().info('Beacon particle filter node initialized.')
+    def initialize_particles(self):
+        # Inicializar partículas alrededor de la posición esperada (en este caso, la baliza está en 0,0,0)
+        x = np.random.uniform(-1, 1, self.num_particles)
+        y = np.random.uniform(-1, 1, self.num_particles)
+        z = np.random.uniform(0, 1, self.num_particles)
+        return np.stack([x, y, z], axis=-1)
 
     def odom_callback(self, msg):
-        self.drone_position = np.array([
+        self.current_drone_position = np.array([
             msg.pose.pose.position.x,
-            msg.pose.pose.position.y
+            msg.pose.pose.position.y,
+            msg.pose.pose.position.z
         ])
 
     def distance_callback(self, msg):
-        self.measured_distance = msg.data
+        self.current_distance = msg.data
 
-    def update(self):
-        if self.drone_position is None or self.measured_distance is None:
+    def update_filter(self):
+        if self.current_drone_position is None or self.current_distance is None:
             return
 
-        # Calcular distancia desde cada partícula al dron
-        dists = np.linalg.norm(self.particles - self.drone_position, axis=1)
+        # Calcular distancias desde cada partícula al dron
+        diffs = self.particles - self.current_drone_position
+        dists = np.linalg.norm(diffs, axis=1)
 
-        # Comparar con la distancia medida
-        error = dists - self.measured_distance
-        self.weights = np.exp(-0.5 * (error ** 2) / 0.5**2)
-        self.weights += 1e-30  # evitar ceros
+        # Calcular pesos con un modelo Gaussiano (ruido en distancia)
+        self.weights = np.exp(-0.5 * ((dists - self.current_distance) ** 2) / self.sigma**2)
+        self.weights += 1e-300  # evitar ceros
         self.weights /= np.sum(self.weights)
 
-        # Re-muestreo
-        indices = np.random.choice(range(self.num_particles), self.num_particles, p=self.weights)
-        self.particles = self.particles[indices]
-        self.weights.fill(1.0 / self.num_particles)
+        # Resamplear partículas de forma eficiente
+        self.resample_particles()
 
-        # Estimar posición promedio
-        estimate = np.mean(self.particles, axis=0)
-        self.publish_estimate(estimate)
+        # Publicar estimación y partículas
+        self.publish_estimate()
         self.publish_particles()
 
-    def publish_estimate(self, estimate):
-        pose = PoseStamped()
-        pose.header.stamp = self.get_clock().now().to_msg()
-        pose.header.frame_id = 'map'
-        pose.pose.position.x = estimate[0]
-        pose.pose.position.y = estimate[1]
-        pose.pose.position.z = 0.0
-        pose.pose.orientation.w = 1.0
-        self.pose_pub.publish(pose)
+    def resample_particles(self):
+        # Resampling sistemático para mejorar la precisión
+        cumulative_sum = np.cumsum(self.weights)
+        cumulative_sum[-1] = 1.0  # Asegurarse de que no haya desbordamientos
+        indices = np.searchsorted(cumulative_sum, np.random.rand(self.num_particles))
+        self.particles = self.particles[indices]
+
+         # Añadir ruido Gaussiano para evitar colapso del filtro
+        noise_std = 0.01  # Puedes ajustar este valor
+        noise = np.random.normal(0, noise_std, self.particles.shape)
+        self.particles += noise
+
+        self.weights.fill(1.0 / self.num_particles)  # Pesos uniformes después del resampling
+
+    def publish_estimate(self):
+        # Estimación de la posición basada en las partículas
+        mean = np.average(self.particles, axis=0, weights=self.weights)
+        msg = PoseStamped()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = 'map'
+        msg.pose.position.x = mean[0]
+        msg.pose.position.y = mean[1]
+        msg.pose.position.z = mean[2]
+        msg.pose.orientation.w = 1.0  # sin orientación
+        self.pose_pub.publish(msg)
 
     def publish_particles(self):
-        pa = PoseArray()
-        pa.header.stamp = self.get_clock().now().to_msg()
-        pa.header.frame_id = 'map'
+        # Publicar todas las partículas en RViz
+        msg = PoseArray()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = 'map'
         for p in self.particles:
             pose = Pose()
             pose.position.x = p[0]
             pose.position.y = p[1]
-            pose.position.z = 0.0
+            pose.position.z = p[2]
             pose.orientation.w = 1.0
-            pa.poses.append(pose)
-        self.particles_pub.publish(pa)
+            msg.poses.append(pose)
+        self.particles_pub.publish(msg)
 
 def main(args=None):
     rclpy.init(args=args)
-    node = BeaconEstimator()
+    node = BeaconParticleFilter()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
