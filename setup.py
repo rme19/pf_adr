@@ -20,8 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'particle_filter_node = particle_filter.particle_node:main',
-            'beacon_node = particle_filter.beacon:main',
+            'particle_filter_node = pf_adr.particle_node:main',
+            'beacon_node = pf_adr.beacon:main',
         ],
     },
 )
