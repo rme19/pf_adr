@@ -6,7 +6,7 @@ import math
 
 class DistanceToTargetNode(Node):
     def __init__(self):
-        super().__init__('distance_to_target_node')
+        super().__init__('beacon_node')
 
         # Parámetros: posición definida
         self.declare_parameter('target_position', [0.0, 0.0, 0.0])  # (x, y, z)

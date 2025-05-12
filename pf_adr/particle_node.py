@@ -7,15 +7,27 @@ import numpy as np
 
 class BeaconParticleFilter(Node):
     def __init__(self):
-        super().__init__('beacon_particle_filter')
+        super().__init__('particle_filter_node')
 
         # Parámetros configurables
-        self.declare_parameter('num_particles', 1000)
-        self.num_particles = self.get_parameter('num_particles').value
-        self.declare_parameter('sigma', 0.02)  # Desviación estándar para la medición de distancia
-        self.sigma = self.get_parameter('sigma').value
+        self.declare_parameter('num_particles', 5000)
+        self.declare_parameter('sigma', 0.02)
+        self.declare_parameter('noise_std', 0.02)
+        self.declare_parameter('radius', 1.0)
+        self.declare_parameter('init_x_range', [-1.0, 1.0])
+        self.declare_parameter('init_y_range', [-1.0, 1.0])
+        self.declare_parameter('init_z_range', [0.0, 1.0])
 
-        self.particles = self.initialize_particles()
+        self.num_particles = self.get_parameter('num_particles').value
+        self.sigma = self.get_parameter('sigma').value
+        self.noise_std = self.get_parameter('noise_std').value
+        self.radius = self.get_parameter('radius').value
+        self.init_x_range = self.get_parameter('init_x_range').value
+        self.init_y_range = self.get_parameter('init_y_range').value
+        self.init_z_range = self.get_parameter('init_z_range').value
+
+        # self.particles = self.initialize_particles()
+        self.particles = self.initialize_particles2()
         self.weights = np.ones(self.num_particles) / self.num_particles
 
         self.current_drone_position = None
@@ -25,19 +37,32 @@ class BeaconParticleFilter(Node):
         self.create_subscription(Odometry, '/simple_drone/odom', self.odom_callback, 10)
         self.create_subscription(Float64, '/distance_to_target', self.distance_callback, 10)
 
-        # Publicadores para RViz
+        # Publicadores
         self.pose_pub = self.create_publisher(PoseStamped, '/pf/beacon_estimate', 10)
         self.particles_pub = self.create_publisher(PoseArray, '/pf/particles', 10)
 
-        self.timer = self.create_timer(0.1, self.update_filter)
+        # Temporizador principal
+        self.timer = self.create_timer(0.05, self.update_filter)
         self.get_logger().info('Filtro de partículas para estimar baliza inicializado.')
 
     def initialize_particles(self):
-        # Inicializar partículas alrededor de la posición esperada (en este caso, la baliza está en 0,0,0)
-        x = np.random.uniform(-1, 1, self.num_particles)
-        y = np.random.uniform(-1, 1, self.num_particles)
-        z = np.random.uniform(0, 1, self.num_particles)
+        x = np.random.uniform(self.init_x_range[0], self.init_x_range[1], self.num_particles)
+        y = np.random.uniform(self.init_y_range[0], self.init_y_range[1], self.num_particles)
+        z = np.random.uniform(self.init_z_range[0], self.init_z_range[1], self.num_particles)
         return np.stack([x, y, z], axis=-1)
+    
+    def initialize_particles2(self):
+        # Inicializar partículas de forma uniforme en una esfera de radio R alrededor del origen      
+        phi = np.random.uniform(0, 2 * np.pi, self.num_particles)
+        costheta = np.random.uniform(-1, 1, self.num_particles)
+        u = np.random.uniform(0, 1, self.num_particles)
+        theta = np.arccos(costheta)
+        r = self.radius * u**(1/3)  # distribución uniforme en volumen
+        x = r * np.sin(theta) * np.cos(phi)
+        y = r * np.sin(theta) * np.sin(phi)
+        z = r * costheta
+        return np.stack([x, y, z], axis=-1)
+
 
     def odom_callback(self, msg):
         self.current_drone_position = np.array([
@@ -53,38 +78,38 @@ class BeaconParticleFilter(Node):
         if self.current_drone_position is None or self.current_distance is None:
             return
 
-        # Calcular distancias desde cada partícula al dron
+        # Modelo de observación: distancia entre dron y partículas
         diffs = self.particles - self.current_drone_position
         dists = np.linalg.norm(diffs, axis=1)
 
-        # Calcular pesos con un modelo Gaussiano (ruido en distancia)
         self.weights = np.exp(-0.5 * ((dists - self.current_distance) ** 2) / self.sigma**2)
-        self.weights += 1e-300  # evitar ceros
+        self.weights += 1e-300
         self.weights /= np.sum(self.weights)
 
-        # Resamplear partículas de forma eficiente
-        self.resample_particles()
+        # Resampleo solo si Neff es bajo (número de partículas efectivas, las que tienen peso significativo)
+        if self.effective_sample_size() < self.num_particles / 2:
+            self.resample_particles()
 
-        # Publicar estimación y partículas
+        # Publicación
         self.publish_estimate()
         self.publish_particles()
 
+    def effective_sample_size(self):
+        return 1.0 / np.sum(np.square(self.weights))
+
     def resample_particles(self):
-        # Resampling sistemático para mejorar la precisión
         cumulative_sum = np.cumsum(self.weights)
-        cumulative_sum[-1] = 1.0  # Asegurarse de que no haya desbordamientos
+        cumulative_sum[-1] = 1.0  # proteger contra errores numéricos
         indices = np.searchsorted(cumulative_sum, np.random.rand(self.num_particles))
         self.particles = self.particles[indices]
 
-         # Añadir ruido Gaussiano para evitar colapso del filtro
-        noise_std = 0.01  # Puedes ajustar este valor
-        noise = np.random.normal(0, noise_std, self.particles.shape)
+        # Ruido para diversificación
+        noise = np.random.normal(0, self.noise_std, self.particles.shape)
         self.particles += noise
 
-        self.weights.fill(1.0 / self.num_particles)  # Pesos uniformes después del resampling
+        self.weights.fill(1.0 / self.num_particles)
 
     def publish_estimate(self):
-        # Estimación de la posición basada en las partículas
         mean = np.average(self.particles, axis=0, weights=self.weights)
         msg = PoseStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
@@ -92,11 +117,10 @@ class BeaconParticleFilter(Node):
         msg.pose.position.x = mean[0]
         msg.pose.position.y = mean[1]
         msg.pose.position.z = mean[2]
-        msg.pose.orientation.w = 1.0  # sin orientación
+        msg.pose.orientation.w = 1.0
         self.pose_pub.publish(msg)
 
     def publish_particles(self):
-        # Publicar todas las partículas en RViz
         msg = PoseArray()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = 'map'
