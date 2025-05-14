@@ -119,6 +119,18 @@ def generate_launch_description():
             output='screen',
         ),
 
+        Node(
+            package='pf_adr',
+            executable='particle_filter_node',
+            name='particle_filter_node',
+            parameters=[{
+                'num_particles': 5000, 
+                'sigma': 0.1,
+                'noise_std': 0.1,
+                'radius': 2.5
+            }]
+        ),
+
         OpaqueFunction(
             function=get_teleop_controller,
             kwargs={'model_ns': model_ns},

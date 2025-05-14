@@ -95,6 +95,17 @@ def generate_launch_description():
                 output='screen'
             )
         )
+        spawn_beacons_actions.append(
+            Node(
+                package='pf_adr',
+                executable='beacon_node',
+                name=f'beacon_node_{i}',
+                parameters=[{
+                    'target_position': [x, y, z]
+                }],
+                output='screen'
+            )
+        )
 
 
     return LaunchDescription([
