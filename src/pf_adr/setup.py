@@ -16,6 +16,8 @@ setup(
         (os.path.join('share', package_name, 'launch'), glob('launch/*')),
         (os.path.join('share', package_name, 'worlds'), glob('worlds/*.world')),
         (os.path.join('share', package_name, 'models'), glob('models/*.sdf')),
+        (os.path.join('share', package_name, 'rviz'), glob('rviz/*.rviz')),
+
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -28,6 +30,8 @@ setup(
         'console_scripts': [
             'particle_filter_node = pf_adr.particle_node:main',
             'beacon_node = pf_adr.beacon:main',
+            'particle_filter_node2 = pf_adr.particle_filter:main',
+            'beacon_activity_control = pf_adr.beacon_activity_control:main',
         ],
     },
 )

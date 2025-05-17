@@ -8,15 +8,21 @@ class DistanceToTargetNode(Node):
     def __init__(self):
         super().__init__('beacon_node')
 
-        # Parámetros: posición definida
-        self.declare_parameter('target_position', [0.0, 0.0, 0.0])  # (x, y, z)
+        # Obtener beacon_id desde parámetros
+        self.declare_parameter('beacon_id', 0)
+        self.beacon_id = self.get_parameter('beacon_id').value
+
+        # Obtener la posición objetivo desde parámetros
+        self.declare_parameter('target_position', [0.0, 0.0, 0.0])
         self.target_position = self.get_parameter('target_position').value
 
-        # Suscripción al topic /simple_drone/odom
+        # Suscribirse a la odometría del dron
         self.odom_sub = self.create_subscription(Odometry, '/simple_drone/odom', self.odom_callback, 10)
 
-        # Publicación de la distancia en /distance_to_target
-        self.distance_pub = self.create_publisher(Float64, '/distance_to_target', 10)
+        # Crear publisher personalizado por ID de baliza
+        topic_name = f'/beacon_{self.beacon_id}/distance_to_target'
+        self.distance_pub = self.create_publisher(Float64, topic_name, 10)
+
 
     def odom_callback(self, msg):
         # Obtener la posición del dron desde el mensaje de Odometry

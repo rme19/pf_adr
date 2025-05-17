@@ -14,7 +14,6 @@
 # limitations under the License.
 
 import os
-
 import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -22,7 +21,6 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, Opaq
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from launch.substitutions import LaunchConfiguration
-
 
 def get_teleop_controller(context, *_, **kwargs) -> Node:
     controller = context.launch_configurations["controller"]
@@ -35,7 +33,6 @@ def get_teleop_controller(context, *_, **kwargs) -> Node:
             namespace=namespace,
             output="screen",
         )
-
     else:
         node = Node(
             package="sjtu_drone_control",
@@ -44,36 +41,10 @@ def get_teleop_controller(context, *_, **kwargs) -> Node:
             output="screen",
             prefix="xterm -e",
         )
-
     return [node]
-
-
-def rviz_node_generator(context, rviz_path):
-    """Return a Node action for RViz, omitting --fixed-frame if empty."""
-    fixed_frame_value = LaunchConfiguration('fixed_frame').perform(context)
-
-    rviz_arguments = ['-d', rviz_path]
-
-    if fixed_frame_value:
-        rviz_arguments.extend(['--fixed-frame', fixed_frame_value])
-
-    return [
-        Node(
-            package='rviz2',
-            executable='rviz2',
-            name='rviz2',
-            arguments=rviz_arguments,
-            output='screen',
-        )
-    ]
-
 
 def generate_launch_description():
     pf_adr_bringup_path = get_package_share_directory('pf_adr')
-
-    rviz_path = os.path.join(
-        pf_adr_bringup_path, "rviz", "5_PF.rviz"
-    )
 
     yaml_file_path = os.path.join(
         get_package_share_directory('sjtu_drone_bringup'),
@@ -84,10 +55,11 @@ def generate_launch_description():
 
     with open(yaml_file_path, 'r') as f:
         yaml_dict = yaml.load(f, Loader=yaml.FullLoader)
-        model_ns = yaml_dict["namespace"]
+        model_ns = yaml_dict.get("namespace", model_ns)
 
     # Número de beacons a lanzar
-    num_beacons = 3
+    num_beacons = 5
+    
 
     # Lista de nodos de filtros de partículas, uno por beacon
     particle_filter_nodes = []
@@ -102,7 +74,7 @@ def generate_launch_description():
                     'total_beacons': num_beacons,
                     'sigma': 0.1,
                     'noise_std': 0.1,
-                    'radius': 2.0,
+                    'radius': 2.5,
                     'beacon_id': i  # si el nodo usa este parámetro
                 }],
                 remappings=[
@@ -120,7 +92,6 @@ def generate_launch_description():
             default_value='5',
             description='Número total de balizas esperadas'
         ),
-
         DeclareLaunchArgument(
             "controller",
             default_value="keyboard",
@@ -133,15 +104,9 @@ def generate_launch_description():
             description='If provided, sets the fixed frame in RViz.'
         ),
 
-        OpaqueFunction(
-            function=rviz_node_generator,
-            kwargs={'rviz_path': rviz_path},
-        ),
-
-
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
-                os.path.join(pf_adr_bringup_path, 'launch', 'sjtu_drone_fp.launch.py')
+                os.path.join(pf_adr_bringup_path, 'launch', 'sjtu_drone_fp_2.launch.py')
             )
         ),
 
@@ -152,6 +117,16 @@ def generate_launch_description():
             namespace=model_ns,
             output='screen',
         ),
+        Node(
+            package='pf_adr',
+            executable='beacon_activity_control',
+            name='beacon_activity_control',
+            parameters=[{
+                'num_beacons': num_beacons,
+                'timeout_sec': 1.0
+            }]
+        ),
+
 
         # Añadimos todos los nodos de filtros de partículas aquí
         *particle_filter_nodes,

@@ -37,9 +37,8 @@ def generate_launch_description():
         model_ns = yaml_dict["namespace"]
 
     world_file_default = os.path.join(
-        get_package_share_directory('pf_adr'),
-        'worlds',
-        'empty.world'
+        get_package_share_directory("sjtu_drone_description"),
+        "worlds", "empty.world"
     )
 
     world_file = LaunchConfiguration('world', default=world_file_default)
@@ -64,12 +63,12 @@ def generate_launch_description():
 
     # Generar balizas aleatorias
     spawn_beacons_actions = []
-    num_beacons = 3  # Número de balizas a generar
+    num_beacons = 5  # Número de balizas a generar
     # Obtener la ruta del modelo de la baliza
 
 
     model_path = os.path.join(
-        get_package_share_directory('pf_adr'),
+        get_package_share_directory('sjtu_drone_description'),
         'models',
         'beacon.sdf'
     )

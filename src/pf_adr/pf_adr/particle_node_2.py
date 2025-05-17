@@ -14,17 +14,23 @@ class BeaconParticleFilter(Node):
         self.beacon_id = self.get_parameter('beacon_id').value
 
         # Parámetros configurables
-        self.declare_parameter('num_particles', 5000)
+        # Nuevos parámetros
+        self.declare_parameter('total_num_particles', 5000)
+        self.declare_parameter('total_beacons', 5)
+
+        self.total_num_particles = self.get_parameter('total_num_particles').value
+        self.total_beacons = self.get_parameter('total_beacons').value
+
+        # Reparto uniforme
+        self.num_particles = self.total_num_particles // self.total_beacons
+
         self.declare_parameter('sigma', 0.02)
         self.declare_parameter('noise_std', 0.02)
         self.declare_parameter('radius', 1.0)
         self.declare_parameter('init_x_range', [-1.0, 1.0])
         self.declare_parameter('init_y_range', [-1.0, 1.0])
         self.declare_parameter('init_z_range', [0.0, 1.0])
-        self.declare_parameter('noise_pos_drone',[0.003, 0.003, 0.002])
-        self.declare_parameter('noise_dist',0.003)
 
-        
         self.num_particles = self.get_parameter('num_particles').value
         self.sigma = self.get_parameter('sigma').value
         self.noise_std = self.get_parameter('noise_std').value
@@ -32,8 +38,6 @@ class BeaconParticleFilter(Node):
         self.init_x_range = self.get_parameter('init_x_range').value
         self.init_y_range = self.get_parameter('init_y_range').value
         self.init_z_range = self.get_parameter('init_z_range').value
-        self.noise_pos_drone = self.get_parameter('noise_pos_drone').value
-        self.noise_dist = self.get_parameter('noise_dist').value
 
         self.particles = self.initialize_particles2()
         self.weights = np.ones(self.num_particles) / self.num_particles
@@ -67,20 +71,14 @@ class BeaconParticleFilter(Node):
         return np.stack([x, y, z], axis=-1)
 
     def odom_callback(self, msg):
-        noise_drone = np.random.normal(0, self.noise_pos_drone, 3)
         self.current_drone_position = np.array([
-            msg.pose.pose.position.x + noise_drone[0],
-            msg.pose.pose.position.y + noise_drone[1],
-            msg.pose.pose.position.z + noise_drone[2]
+            msg.pose.pose.position.x,
+            msg.pose.pose.position.y,
+            msg.pose.pose.position.z
         ])
 
     def distance_callback(self, msg):
-        if msg.data < 0.0:
-            self.current_distance = None
-    
-        else:
-            noise_distance = np.random.normal(0, self.noise_dist)
-            self.current_distance = msg.data + noise_distance
+        self.current_distance = msg.data
 
     def update_filter(self):
         if self.current_drone_position is None or self.current_distance is None:
