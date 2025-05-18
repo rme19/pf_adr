@@ -1,9 +1,8 @@
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float64, Int32
+from std_msgs.msg import Float64, Int32, Int32MultiArray
 from rclpy.qos import QoSProfile
 import time
-
 
 class BeaconActivityMonitor(Node):
     def __init__(self):
@@ -15,6 +14,9 @@ class BeaconActivityMonitor(Node):
 
         self.declare_parameter('timeout_sec', 1.0)
         self.timeout_sec = self.get_parameter('timeout_sec').value
+
+        self.declare_parameter('total_particles', 5000)
+        self.total_particles = self.get_parameter('total_particles').value
 
         self.last_seen = [0.0] * self.num_beacons
         self.subscribers = []
@@ -29,23 +31,50 @@ class BeaconActivityMonitor(Node):
             )
             self.subscribers.append(sub)
 
-        self.publisher = self.create_publisher(Int32, '/active_beacons_count', 10)
+        self.publisher_count = self.create_publisher(Int32, '/active_beacons_count', 10)
+        self.publisher_ids = self.create_publisher(Int32MultiArray, '/active_beacons_ids', 10)
+        self.publisher_distribution = self.create_publisher(Int32MultiArray, '/beacon_particle_distribution', 10)
+
         self.timer = self.create_timer(0.5, self.check_active_beacons)
 
         self.get_logger().info(f'Monitor iniciado para {self.num_beacons} balizas.')
 
     def distance_callback(self, msg, beacon_id):
-        if msg.data > 0.0 and msg.data < 10.0 and not msg.data == float('inf'):
+        if 0.0 < msg.data < 10.0 and msg.data != float('inf'):
             self.last_seen[beacon_id] = time.time()
 
     def check_active_beacons(self):
         now = time.time()
-        active_count = sum((now - t) < self.timeout_sec for t in self.last_seen)
-        msg = Int32()
-        msg.data = active_count
-        self.publisher.publish(msg)
-        self.get_logger().info(f'{active_count} balizas activas')
 
+        active_ids = [
+            i for i, t in enumerate(self.last_seen)
+            if (now - t) < self.timeout_sec
+        ]
+        active_count = len(active_ids)
+
+        # Publicar cantidad
+        msg_count = Int32()
+        msg_count.data = active_count
+        self.publisher_count.publish(msg_count)
+
+        # Publicar lista de IDs activas
+        msg_ids = Int32MultiArray()
+        msg_ids.data = active_ids
+        self.publisher_ids.publish(msg_ids)
+
+        # Calcular distribución de partículas
+        distribution = [0] * self.num_beacons
+        if active_count > 0:
+            per_beacon = self.total_particles // active_count
+            for i in active_ids:
+                distribution[i] = per_beacon
+
+        # Publicar distribución de partículas
+        msg_dist = Int32MultiArray()
+        msg_dist.data = distribution
+        self.publisher_distribution.publish(msg_dist)
+
+        self.get_logger().info(f'Balizas activas: {active_ids} → {per_beacon if active_count else 0} partículas cada una.')
 
 def main(args=None):
     rclpy.init(args=args)
@@ -53,7 +82,6 @@ def main(args=None):
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
-
 
 if __name__ == '__main__':
     main()

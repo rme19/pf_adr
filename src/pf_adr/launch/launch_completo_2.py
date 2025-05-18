@@ -67,7 +67,7 @@ def generate_launch_description():
         particle_filter_nodes.append(
             Node(
                 package='pf_adr',
-                executable='particle_filter_node',
+                executable='particle_filter_node2',
                 name=f'particle_filter_node_{i}',
                 parameters=[{
                     'total_num_particles': 5000,
@@ -106,7 +106,7 @@ def generate_launch_description():
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
-                os.path.join(pf_adr_bringup_path, 'launch', 'sjtu_drone_fp.launch.py')
+                os.path.join(pf_adr_bringup_path, 'launch', 'sjtu_drone_fp_2.launch.py')
             )
         ),
 
@@ -123,9 +123,11 @@ def generate_launch_description():
             name='beacon_activity_control',
             parameters=[{
                 'num_beacons': num_beacons,
-                'timeout_sec': 1.0
+                'timeout_sec': 1.0,
+                'total_particles': 5000  # Puedes ajustar este valor según lo que necesites
             }]
         ),
+
 
 
         # Añadimos todos los nodos de filtros de partículas aquí

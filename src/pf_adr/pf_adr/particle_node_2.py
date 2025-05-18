@@ -1,7 +1,7 @@
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
-from std_msgs.msg import Float64
+from std_msgs.msg import Float64, Int32MultiArray
 from geometry_msgs.msg import PoseStamped, PoseArray, Pose
 import numpy as np
 
@@ -13,62 +13,70 @@ class BeaconParticleFilter(Node):
         self.declare_parameter('beacon_id', 0)
         self.beacon_id = self.get_parameter('beacon_id').value
 
-        # Parámetros configurables
-        # Nuevos parámetros
+        # Parámetros globales
         self.declare_parameter('total_num_particles', 5000)
-        self.declare_parameter('total_beacons', 5)
-
         self.total_num_particles = self.get_parameter('total_num_particles').value
-        self.total_beacons = self.get_parameter('total_beacons').value
 
-        # Reparto uniforme
-        self.num_particles = self.total_num_particles // self.total_beacons
-
+        # Otros parámetros
         self.declare_parameter('sigma', 0.02)
         self.declare_parameter('noise_std', 0.02)
         self.declare_parameter('radius', 1.0)
-        self.declare_parameter('init_x_range', [-1.0, 1.0])
-        self.declare_parameter('init_y_range', [-1.0, 1.0])
-        self.declare_parameter('init_z_range', [0.0, 1.0])
 
-        self.num_particles = self.get_parameter('num_particles').value
         self.sigma = self.get_parameter('sigma').value
         self.noise_std = self.get_parameter('noise_std').value
         self.radius = self.get_parameter('radius').value
-        self.init_x_range = self.get_parameter('init_x_range').value
-        self.init_y_range = self.get_parameter('init_y_range').value
-        self.init_z_range = self.get_parameter('init_z_range').value
-
-        self.particles = self.initialize_particles2()
-        self.weights = np.ones(self.num_particles) / self.num_particles
 
         self.current_drone_position = None
         self.current_distance = None
 
-        # Topic distance_to_target específico de la baliza
-        distance_topic = f'/beacon_{self.beacon_id}/distance_to_target'
+        # Inicialmente sin partículas hasta que llegue la asignación
+        self.num_particles = 0
+        self.particles = np.zeros((0, 3))
+        self.weights = np.zeros(0)
 
-        # Subscripciones
+        # Suscripciones
         self.create_subscription(Odometry, '/simple_drone/odom', self.odom_callback, 10)
-        self.create_subscription(Float64, distance_topic, self.distance_callback, 10)
+        self.create_subscription(Float64, f'/beacon_{self.beacon_id}/distance_to_target', self.distance_callback, 10)
+        self.create_subscription(Int32MultiArray, '/beacon_particle_distribution', self.particle_distribution_callback, 10)
 
-        # Publicadores con topics específicos
+        # Publicadores
         self.pose_pub = self.create_publisher(PoseStamped, f'/pf/beacon_{self.beacon_id}/estimate', 10)
         self.particles_pub = self.create_publisher(PoseArray, f'/pf/beacon_{self.beacon_id}/particles', 10)
 
         self.timer = self.create_timer(0.05, self.update_filter)
+
         self.get_logger().info(f'Filtro de partículas para baliza {self.beacon_id} inicializado.')
 
-    def initialize_particles2(self):
-        phi = np.random.uniform(0, 2 * np.pi, self.num_particles)
-        costheta = np.random.uniform(-1, 1, self.num_particles)
-        u = np.random.uniform(0, 1, self.num_particles)
+    def initialize_particles(self, num):
+        if num == 0:
+            return np.zeros((0, 3))
+        phi = np.random.uniform(0, 2 * np.pi, num)
+        costheta = np.random.uniform(-1, 1, num)
+        u = np.random.uniform(0, 1, num)
         theta = np.arccos(costheta)
         r = self.radius * u**(1/3)
         x = r * np.sin(theta) * np.cos(phi)
         y = r * np.sin(theta) * np.sin(phi)
         z = r * costheta
         return np.stack([x, y, z], axis=-1)
+
+    def particle_distribution_callback(self, msg):
+        try:
+            new_count = msg.data[self.beacon_id]
+        except IndexError:
+            self.get_logger().warn(f'Se recibió distribución pero no hay entrada para beacon_id={self.beacon_id}')
+            return
+
+        if new_count != self.num_particles:
+            self.num_particles = new_count
+            if new_count == 0:
+                self.particles = np.zeros((0, 3))
+                self.weights = np.zeros(0)
+                self.get_logger().info(f'Baliza {self.beacon_id} inactiva. Filtro desactivado.')
+            else:
+                self.particles = self.initialize_particles(new_count)
+                self.weights = np.ones(new_count) / new_count
+                self.get_logger().info(f'Baliza {self.beacon_id} activa. {new_count} partículas asignadas.')
 
     def odom_callback(self, msg):
         self.current_drone_position = np.array([
@@ -81,7 +89,7 @@ class BeaconParticleFilter(Node):
         self.current_distance = msg.data
 
     def update_filter(self):
-        if self.current_drone_position is None or self.current_distance is None:
+        if self.num_particles == 0 or self.current_drone_position is None or self.current_distance is None:
             return
 
         diffs = self.particles - self.current_drone_position
@@ -98,7 +106,7 @@ class BeaconParticleFilter(Node):
         self.publish_particles()
 
     def effective_sample_size(self):
-        return 1.0 / np.sum(np.square(self.weights))
+        return 1.0 / np.sum(np.square(self.weights)) if self.num_particles > 0 else 0
 
     def resample_particles(self):
         cumulative_sum = np.cumsum(self.weights)
@@ -110,6 +118,8 @@ class BeaconParticleFilter(Node):
         self.weights.fill(1.0 / self.num_particles)
 
     def publish_estimate(self):
+        if self.num_particles == 0:
+            return
         mean = np.average(self.particles, axis=0, weights=self.weights)
         msg = PoseStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
@@ -124,6 +134,11 @@ class BeaconParticleFilter(Node):
         msg = PoseArray()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = 'map'
+
+        if self.num_particles == 0 or self.particles.size == 0:
+            self.particles_pub.publish(msg)
+            return
+
         for p in self.particles:
             pose = Pose()
             pose.position.x = p[0]
@@ -131,6 +146,7 @@ class BeaconParticleFilter(Node):
             pose.position.z = p[2]
             pose.orientation.w = 1.0
             msg.poses.append(pose)
+
         self.particles_pub.publish(msg)
 
 def main(args=None):
@@ -142,3 +158,13 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+# This code is a ROS2 node that implements a particle filter for a beacon.
+# It subscribes to the drone's odometry and the distance to the target,         
+# and publishes the estimated position of the beacon and the particles.
+# The node initializes particles, updates their weights based on the distance,
+# resamples them if necessary, and publishes the estimated position and particles.
+# The node also handles the distribution of particles based on the number of active beacons.
+# The code uses numpy for numerical operations and ROS2 for communication.
+# The node is designed to be part of a larger system for drone navigation and localization.
+# It includes methods for initializing particles, updating the filter, and publishing results.
+# The node is initialized with parameters for the number of particles, noise, and radius.
