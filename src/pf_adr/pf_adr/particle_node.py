@@ -4,6 +4,9 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64
 from geometry_msgs.msg import PoseStamped, PoseArray, Pose
 import numpy as np
+import csv
+import os
+from datetime import datetime
 
 class BeaconParticleFilter(Node):
     def __init__(self):
@@ -23,6 +26,7 @@ class BeaconParticleFilter(Node):
         self.declare_parameter('init_z_range', [0.0, 1.0])
         self.declare_parameter('noise_pos_drone',[0.003, 0.003, 0.002])
         self.declare_parameter('noise_dist',0.003)
+        
 
         
         self.num_particles = self.get_parameter('num_particles').value
@@ -35,11 +39,19 @@ class BeaconParticleFilter(Node):
         self.noise_pos_drone = self.get_parameter('noise_pos_drone').value
         self.noise_dist = self.get_parameter('noise_dist').value
 
+        self.name_fichero = ('archivo_csv_' + str(self.beacon_id))
         # Creación de directorio y archivo CSV
         now = datetime.now().strftime('%Y%m%d_%H%M%S')
         log_dir = os.path.expanduser('~/ros2_ws/src/pf_adr/pf_logs')  # Asegúrate de que este directorio sea correcto
         os.makedirs(log_dir, exist_ok=True)  # Crear la carpeta si no existe
-        self.csv_path = os.path.join(log_dir, f'pf_means_{now}.csv')
+        self.csv_path = os.path.join(log_dir, f'pf_means_{self.beacon_id}.csv')
+
+
+        # Crear y abrir el archivo CSV
+        self.csv_file = open(self.csv_path, mode='w', newline='')
+        self.csv_writer = csv.writer(self.csv_file)
+        self.csv_writer.writerow(['timestamp', 'x_mean', 'y_mean', 'z_mean'])
+
 
         self.particles = self.initialize_particles2()
         self.weights = np.ones(self.num_particles) / self.num_particles
@@ -129,6 +141,7 @@ class BeaconParticleFilter(Node):
         msg.pose.position.z = mean[2]
         msg.pose.orientation.w = 1.0
         self.pose_pub.publish(msg)
+
         # Guardar en el CSV
         elapsed_time = (self.get_clock().now() - self.start_time).nanoseconds * 1e-9
         self.csv_writer.writerow([elapsed_time, mean[0], mean[1], mean[2]])

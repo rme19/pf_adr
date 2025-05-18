@@ -3,6 +3,8 @@ from rclpy.node import Node
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64
 import math
+import random
+
 
 class DistanceToTargetNode(Node):
     def __init__(self):
@@ -15,7 +17,7 @@ class DistanceToTargetNode(Node):
         # Obtener la posición objetivo desde parámetros
         self.declare_parameter('target_position', [0.0, 0.0, 0.0])
         self.target_position = self.get_parameter('target_position').value
-
+    
         # Rango fijo de intervalos aleatorios
         self.outlier_interval_min = 90.0          
         self.outlier_interval_max = 120.0
@@ -45,7 +47,7 @@ class DistanceToTargetNode(Node):
             (drone_z - self.target_position[2]) ** 2
         )
         # Comprobar si la distancia esta dentro del limite de deteccion
-        if distance > 3.0:
+        if distance > 6.0:
             distance = -1.0       
         
         else:
