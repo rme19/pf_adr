@@ -52,7 +52,7 @@ class DistanceToTargetNode(Node):
         
         else:
             if self.message_counter >= self.interval:
-                self.get_logger().warn(f'Injectando OUTLIER en el mensaje {self.message_counter}')
+                self.get_logger().warn(f'Inyectando OUTLIER en el mensaje {self.message_counter}')
                 distance = -1.0
                 self.message_counter = 0.0
                 self.interval = random.uniform(self.outlier_interval_min, self.outlier_interval_max)
