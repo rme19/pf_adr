@@ -16,6 +16,13 @@ class DistanceToTargetNode(Node):
         self.declare_parameter('target_position', [0.0, 0.0, 0.0])
         self.target_position = self.get_parameter('target_position').value
 
+        # Rango fijo de intervalos aleatorios
+        self.outlier_interval_min = 90.0          
+        self.outlier_interval_max = 120.0
+        self.interval = 100.0
+
+        self.message_counter = 0.0
+
         # Suscribirse a la odometría del dron
         self.odom_sub = self.create_subscription(Odometry, '/simple_drone/odom', self.odom_callback, 10)
 
@@ -37,7 +44,20 @@ class DistanceToTargetNode(Node):
             (drone_y - self.target_position[1]) ** 2 +
             (drone_z - self.target_position[2]) ** 2
         )
-
+        # Comprobar si la distancia esta dentro del limite de deteccion
+        if distance > 3.0:
+            distance = -1.0       
+        
+        else:
+            if self.message_counter >= self.interval:
+                self.get_logger().warn(f'Injectando OUTLIER en el mensaje {self.message_counter}')
+                distance = -1.0
+                self.message_counter = 0.0
+                self.interval = random.uniform(self.outlier_interval_min, self.outlier_interval_max)
+            
+            else: 
+                self.message_counter += 1.0
+                
         # Publicar la distancia
         distance_msg = Float64()
         distance_msg.data = distance

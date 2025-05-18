@@ -106,7 +106,7 @@ def generate_launch_description():
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
-                os.path.join(pf_adr_bringup_path, 'launch', 'sjtu_drone_fp_2.launch.py')
+                os.path.join(pf_adr_bringup_path, 'launch', 'sjtu_drone_fp.launch.py')
             )
         ),
 

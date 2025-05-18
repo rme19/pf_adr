@@ -35,6 +35,12 @@ class BeaconParticleFilter(Node):
         self.noise_pos_drone = self.get_parameter('noise_pos_drone').value
         self.noise_dist = self.get_parameter('noise_dist').value
 
+        # Creación de directorio y archivo CSV
+        now = datetime.now().strftime('%Y%m%d_%H%M%S')
+        log_dir = os.path.expanduser('~/ros2_ws/src/pf_adr/pf_logs')  # Asegúrate de que este directorio sea correcto
+        os.makedirs(log_dir, exist_ok=True)  # Crear la carpeta si no existe
+        self.csv_path = os.path.join(log_dir, f'pf_means_{now}.csv')
+
         self.particles = self.initialize_particles2()
         self.weights = np.ones(self.num_particles) / self.num_particles
 
@@ -54,6 +60,8 @@ class BeaconParticleFilter(Node):
 
         self.timer = self.create_timer(0.05, self.update_filter)
         self.get_logger().info(f'Filtro de partículas para baliza {self.beacon_id} inicializado.')
+
+        self.start_time = self.get_clock().now()
 
     def initialize_particles2(self):
         phi = np.random.uniform(0, 2 * np.pi, self.num_particles)
@@ -121,6 +129,10 @@ class BeaconParticleFilter(Node):
         msg.pose.position.z = mean[2]
         msg.pose.orientation.w = 1.0
         self.pose_pub.publish(msg)
+        # Guardar en el CSV
+        elapsed_time = (self.get_clock().now() - self.start_time).nanoseconds * 1e-9
+        self.csv_writer.writerow([elapsed_time, mean[0], mean[1], mean[2]])
+        self.csv_file.flush()
 
     def publish_particles(self):
         msg = PoseArray()
@@ -140,6 +152,7 @@ def main(args=None):
     node = BeaconParticleFilter()
     rclpy.spin(node)
     node.destroy_node()
+    node.csv_file.close()
     rclpy.shutdown()
 
 if __name__ == '__main__':
