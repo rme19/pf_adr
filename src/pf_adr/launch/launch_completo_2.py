@@ -42,6 +42,7 @@ def get_teleop_controller(context, *_, **kwargs) -> Node:
             prefix="xterm -e",
         )
     return [node]
+
 def rviz_node_generator(context, rviz_path):
     """Return a Node action for RViz, omitting --fixed-frame if empty."""
     fixed_frame_value = LaunchConfiguration('fixed_frame').perform(context)
@@ -80,8 +81,8 @@ def generate_launch_description():
         model_ns = yaml_dict.get("namespace", model_ns)
 
     # Número de beacons a lanzar
-    num_beacons = 5
-    
+    num_beacons = 3
+    total_particles = 1000
 
     # Lista de nodos de filtros de partículas, uno por beacon
     particle_filter_nodes = []
@@ -92,7 +93,7 @@ def generate_launch_description():
                 executable='particle_filter_node2',
                 name=f'particle_filter_node_{i}',
                 parameters=[{
-                    'total_num_particles': 5000,
+                    'total_num_particles': total_particles,
                     'total_beacons': num_beacons,
                     'sigma': 0.1,
                     'noise_std': 0.1,
@@ -152,7 +153,7 @@ def generate_launch_description():
             parameters=[{
                 'num_beacons': num_beacons,
                 'timeout_sec': 1.0,
-                'total_particles': 5000  # Puedes ajustar este valor según lo que necesites
+                'total_particles': total_particles  # Puedes ajustar este valor según lo que necesites
             }]
         ),
 

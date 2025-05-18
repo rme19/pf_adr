@@ -37,18 +37,18 @@ class BeaconParticleFilter(Node):
         self.current_drone_position = None
         self.current_distance = None
 
-        #self.name_fichero = ('archivo_csv_' + str(self.beacon_id))
+        self.name_fichero = ('archivo_csv_' + str(self.beacon_id))
 
         # Creación de directorio y archivo CSV
-        #now = datetime.now().strftime('%Y%m%d_%H%M%S')
-        #log_dir = os.path.expanduser('~/ros2_ws/src/pf_adr/pf_logs')  # Asegúrate de que este directorio sea correcto
-        #os.makedirs(log_dir, exist_ok=True)  # Crear la carpeta si no existe
-        #self.csv_path = os.path.join(log_dir, f'pf_means_{self.beacon_id}.csv')
+        now = datetime.now().strftime('%Y%m%d_%H%M%S')
+        log_dir = os.path.expanduser('~/pf_logs')  # Asegúrate de que este directorio sea correcto
+        os.makedirs(log_dir, exist_ok=True)  # Crear la carpeta si no existe
+        self.csv_path = os.path.join(log_dir, f'pf_means_{self.beacon_id}.csv')
 
         # Crear y abrir el archivo CSV
-        #self.csv_file = open(self.csv_path, mode='w', newline='')
-        #self.csv_writer = csv.writer(self.csv_file)
-        #self.csv_writer.writerow(['timestamp', 'x_mean', 'y_mean', 'z_mean'])
+        self.csv_file = open(self.csv_path, mode='w', newline='')
+        self.csv_writer = csv.writer(self.csv_file)
+        self.csv_writer.writerow(['timestamp', 'x_mean', 'y_mean', 'z_mean'])
 
         # Inicialmente sin partículas hasta que llegue la asignación
         self.num_particles = 0
@@ -68,6 +68,9 @@ class BeaconParticleFilter(Node):
 
         self.get_logger().info(f'Filtro de partículas para baliza {self.beacon_id} inicializado.')
 
+        self.start_time = self.get_clock().now()
+
+
     def initialize_particles(self, num):
         if num == 0:
             return np.zeros((0, 3))
@@ -80,13 +83,26 @@ class BeaconParticleFilter(Node):
         y = r * np.sin(theta) * np.sin(phi)
         z = r * costheta
         return np.stack([x, y, z], axis=-1)
+    
+
+    def initialize_particles_around_point(self, count, center, radius=0.5):
+        """
+        Genera partículas en forma de esfera alrededor de un punto dado.
+        `center` debe ser un array o lista de 3 elementos [x, y, z].
+        `radius` es el radio de dispersión inicial.
+        """
+        offsets = np.random.normal(0, radius, size=(count, 3))
+        return np.array(center) + offsets
+
 
     def particle_distribution_callback(self, msg):
-        try:
-            new_count = msg.data[self.beacon_id]
-        except IndexError:
-            self.get_logger().warn(f'Se recibió distribución pero no hay entrada para beacon_id={self.beacon_id}')
+        if self.beacon_id >= len(msg.data):
+            self.get_logger().warn(
+                f'Se recibió distribución con longitud {len(msg.data)}, pero beacon_id={self.beacon_id} está fuera de rango.'
+            )
             return
+
+        new_count = msg.data[self.beacon_id]  # Número de partículas asignadas a esta baliza
 
         if new_count != self.num_particles:
             self.num_particles = new_count
@@ -95,9 +111,14 @@ class BeaconParticleFilter(Node):
                 self.weights = np.zeros(0)
                 self.get_logger().info(f'Baliza {self.beacon_id} inactiva. Filtro desactivado.')
             else:
-                self.particles = self.initialize_particles(new_count)
+                if hasattr(self, 'estimated_position'):
+                    center = self.estimated_position
+                else:
+                    center = np.zeros(3)
+                    self.get_logger().warn(f'No hay estimación previa. Inicializando partículas en el origen.')
+                self.particles = self.initialize_particles_around_point(new_count, center)
                 self.weights = np.ones(new_count) / new_count
-                self.get_logger().info(f'Baliza {self.beacon_id} activa. {new_count} partículas asignadas.')
+                self.get_logger().info(f'Baliza {self.beacon_id} activa. {new_count} partículas asignadas en torno a {center}.')
 
     def odom_callback(self, msg):
         noise_drone = np.random.normal(0, self.noise_pos_drone, 3)
@@ -156,11 +177,12 @@ class BeaconParticleFilter(Node):
         msg.pose.position.z = mean[2]
         msg.pose.orientation.w = 1.0
         self.pose_pub.publish(msg)
+        self.estimated_position = mean  # <--- Renombrado aquí
 
         # Guardar en el CSV
-        # elapsed_time = (self.get_clock().now() - self.start_time).nanoseconds * 1e-9
-        # self.csv_writer.writerow([elapsed_time, mean[0], mean[1], mean[2]])
-        # self.csv_file.flush()
+        elapsed_time = (self.get_clock().now() - self.start_time).nanoseconds * 1e-9
+        self.csv_writer.writerow([elapsed_time, mean[0], mean[1], mean[2]])
+        self.csv_file.flush()
 
     def publish_particles(self):
         msg = PoseArray()
@@ -186,7 +208,7 @@ def main(args=None):
     node = BeaconParticleFilter()
     rclpy.spin(node)
     node.destroy_node()
-    #node.csv_file.close()
+    node.csv_file.close()
     rclpy.shutdown()
 
 if __name__ == '__main__':
