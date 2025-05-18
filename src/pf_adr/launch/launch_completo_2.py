@@ -42,6 +42,24 @@ def get_teleop_controller(context, *_, **kwargs) -> Node:
             prefix="xterm -e",
         )
     return [node]
+def rviz_node_generator(context, rviz_path):
+    """Return a Node action for RViz, omitting --fixed-frame if empty."""
+    fixed_frame_value = LaunchConfiguration('fixed_frame').perform(context)
+
+    rviz_arguments = ['-d', rviz_path]
+
+    if fixed_frame_value:
+        rviz_arguments.extend(['--fixed-frame', fixed_frame_value])
+
+    return [
+        Node(
+            package='rviz2',
+            executable='rviz2',
+            name='rviz2',
+            arguments=rviz_arguments,
+            output='screen',
+        )
+    ]
 
 def generate_launch_description():
     pf_adr_bringup_path = get_package_share_directory('pf_adr')
@@ -49,6 +67,10 @@ def generate_launch_description():
     yaml_file_path = os.path.join(
         get_package_share_directory('sjtu_drone_bringup'),
         'config', 'drone.yaml'
+    )
+
+    rviz_path = os.path.join(
+        pf_adr_bringup_path, "rviz", "5_PF.rviz"
     )
 
     model_ns = "drone"
@@ -109,6 +131,12 @@ def generate_launch_description():
                 os.path.join(pf_adr_bringup_path, 'launch', 'sjtu_drone_fp.launch.py')
             )
         ),
+
+        OpaqueFunction(
+            function=rviz_node_generator,
+            kwargs={'rviz_path': rviz_path},
+        ),
+
 
         Node(
             package='joy',
