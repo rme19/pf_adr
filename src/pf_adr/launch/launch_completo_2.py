@@ -82,7 +82,7 @@ def generate_launch_description():
 
     # Número de beacons a lanzar
     num_beacons = 3
-    total_particles = 1000
+    total_particles = 15000
 
     # Lista de nodos de filtros de partículas, uno por beacon
     particle_filter_nodes = []

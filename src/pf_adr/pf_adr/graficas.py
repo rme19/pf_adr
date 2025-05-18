@@ -17,16 +17,22 @@ beacon_ids = []
 for file in csv_files:
     df = pd.read_csv(file)
     dfs.append(df)
-    # Extraer el id del nombre del archivo
     beacon_id = int(os.path.splitext(os.path.basename(file))[0].split('_')[-1])
     beacon_ids.append(beacon_id)
 
-# Crear subplots dinámicamente
-fig, axs = plt.subplots(len(dfs), 1, figsize=(10, 4 * len(dfs)), sharex=True)
+# Cargar CSV con la distribución de partículas para el subplot extra
+particle_dist_path = os.path.expanduser('~/pf_logs/pf_particles.csv')
+particle_df = pd.read_csv(particle_dist_path)
 
-if len(dfs) == 1:
-    axs = [axs]  # Para el caso de solo un subplot
+# Crear subplots dinámicamente, uno más de los dfs que tienes
+num_plots = len(dfs) + 1  # +1 subplot extra
 
+fig, axs = plt.subplots(num_plots, 1, figsize=(10, 4 * num_plots), sharex=True)
+
+if num_plots == 1:
+    axs = [axs]
+
+# Graficar los filtros de partículas para cada baliza
 for i, (df, beacon_id) in enumerate(zip(dfs, beacon_ids)):
     timestamps = df['timestamp'].to_numpy()
     x = df['x_mean'].to_numpy()
@@ -45,6 +51,17 @@ for i, (df, beacon_id) in enumerate(zip(dfs, beacon_ids)):
     axs[i].legend()
     axs[i].grid(True)
 
+# Graficar distribución de partículas en el subplot extra
+timestamps = particle_df['timestamp'].to_numpy()
+for col in particle_df.columns:
+    if col != 'timestamp':
+        axs[-1].plot(timestamps, particle_df[col].to_numpy(), label=col)
+
+axs[-1].set_title('Distribución de partículas asignadas por baliza')
+axs[-1].set_ylabel('Cantidad de partículas')
 axs[-1].set_xlabel('Tiempo (s)')
+axs[-1].legend()
+axs[-1].grid(True)
+
 plt.tight_layout()
 plt.show()
