@@ -4,6 +4,8 @@ from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64
 import math
 import random
+import csv
+import os
 
 
 class DistanceToTargetNode(Node):
@@ -17,6 +19,40 @@ class DistanceToTargetNode(Node):
         # Obtener la posición objetivo desde parámetros
         self.declare_parameter('target_position', [0.0, 0.0, 0.0])
         self.target_position = self.get_parameter('target_position').value
+
+        # Guardar beacon_id y target_position en un CSV (append)
+        # csv_path = os.path.expanduser('~/ros2_ws/src/pf_adr/pf_logs/beacon_positions.csv')
+        # os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+        # write_header = not os.path.exists(csv_path)
+        # with open(csv_path, mode='a', newline='') as csvfile:
+        #     writer = csv.writer(csvfile)
+        #     if write_header:
+        #         writer.writerow(['beacon_id', 'x', 'y', 'z'])
+        #     writer.writerow([self.beacon_id] + list(self.target_position))
+        # Guardar beacon_id y target_position en un CSV (sobrescribe si es la primera baliza)
+        csv_path = os.path.expanduser('~/pf_logs/beacon_positions.csv')
+        os.makedirs(os.path.dirname(csv_path), exist_ok=True)
+
+        # Leer todas las filas existentes (si el archivo existe)    
+        rows = []
+        if os.path.exists(csv_path):
+            with open(csv_path, mode='r', newline='') as csvfile:
+                reader = csv.reader(csvfile)
+                header = next(reader, None)
+                for row in reader:
+                    if int(row[0]) != self.beacon_id:
+                        rows.append(row)
+        else:
+            header = ['beacon_id', 'x', 'y', 'z']
+
+        # Añadir o actualizar la fila de este beacon
+        rows.append([str(self.beacon_id)] + [str(v) for v in self.target_position])
+
+        # Escribir todo de nuevo
+        with open(csv_path, mode='w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(header)
+            writer.writerows(rows)
     
         # Rango fijo de intervalos aleatorios
         self.outlier_interval_min = 90.0          

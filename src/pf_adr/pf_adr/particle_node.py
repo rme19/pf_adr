@@ -42,7 +42,7 @@ class BeaconParticleFilter(Node):
         self.name_fichero = ('archivo_csv_' + str(self.beacon_id))
         # Creación de directorio y archivo CSV
         now = datetime.now().strftime('%Y%m%d_%H%M%S')
-        log_dir = os.path.expanduser('~/ros2_ws/src/pf_adr/pf_logs')  # Asegúrate de que este directorio sea correcto
+        log_dir = os.path.expanduser('~/pf_logs')  # Asegúrate de que este directorio sea correcto
         os.makedirs(log_dir, exist_ok=True)  # Crear la carpeta si no existe
         self.csv_path = os.path.join(log_dir, f'pf_means_{self.beacon_id}.csv')
 
