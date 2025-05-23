@@ -8,14 +8,12 @@ import glob
 # ------------------------------
 log_dir = os.path.expanduser('~/pf_logs')
 beacon_ref_path = os.path.join(log_dir, 'beacon_positions.csv')
-particle_dist_path = os.path.join(log_dir, 'pf_particles.csv')
 csv_files = sorted(glob.glob(os.path.join(log_dir, 'pf_means_*.csv')))
 
 # Datos de referencia
 beacon_refs = pd.read_csv(beacon_ref_path, index_col='beacon_id')
 
-# Distribución de partículas
-particle_df = pd.read_csv(particle_dist_path)
+
 
 # Cargar estimaciones de cada baliza
 dfs = []
@@ -89,26 +87,25 @@ for df, beacon_id in zip(dfs, beacon_ids):
 # FIGURA GENERAL: TODAS LAS BALIZAS
 # ------------------------------
 # Crear subplots dinámicamente, uno más de los dfs que tienes
-num_plots = len(dfs) + 1  # +1 subplot extra
+num_plots = len(dfs)  # +1 subplot extra
 
 fig, axs = plt.subplots(num_plots, 1, figsize=(10, 4 * num_plots), sharex=True)
+
 if num_plots == 1:
     axs = [axs]
 
-# Graficar para cada baliza
+# Graficar los filtros de partículas para cada baliza
 for i, (df, beacon_id) in enumerate(zip(dfs, beacon_ids)):
-    timestamps = pd.to_numeric(df['timestamp']).to_numpy()
+    timestamps = df['timestamp'].to_numpy()
     x = df['x_mean'].to_numpy()
     y = df['y_mean'].to_numpy()
     z = df['z_mean'].to_numpy()
 
 
-
-    axs[i].plot(timestamps, x, label='X estimado', color='C0',color='r') 
-    axs[i].plot(timestamps, y, label='Y estimado', color='C1',color='g')
-    axs[i].plot(timestamps, z, label='Z estimado', color='C2',color='b')
-
-    # Referencias reales de la baliza
+    axs[i].plot(timestamps, x, label='X',color='r') 
+    axs[i].plot(timestamps, y, label='Y',color='g')
+    axs[i].plot(timestamps, z, label='Z',color='b')
+    # Dibujar la referencia real de la baliza
     ref = beacon_refs.loc[beacon_id]
 
 
@@ -121,20 +118,5 @@ for i, (df, beacon_id) in enumerate(zip(dfs, beacon_ids)):
     axs[i].grid(True)
 
     
-# Graficar distribución de partículas en el subplot extra
-timestamps = pd.to_numeric(particle_df['timestamp']).to_numpy()
-colors = ['r', 'g', 'b']  # Puedes ampliar esta lista si tienes más balizas
-
-for idx, col in enumerate(particle_df.columns):
-    if col != 'timestamp':
-        color = colors[idx % len(colors)]
-        axs[-1].plot(timestamps, particle_df[col].to_numpy(), label=col, color=color)
-
-axs[-1].set_title('Distribución de partículas asignadas por baliza')
-axs[-1].set_ylabel('Cantidad de partículas')
-axs[-1].set_xlabel('Tiempo (s)')
-axs[-1].legend(loc='upper right')
-axs[-1].grid(True)
-
 plt.tight_layout()
 plt.show()
