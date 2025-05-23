@@ -104,9 +104,9 @@ for i, (df, beacon_id) in enumerate(zip(dfs, beacon_ids)):
 
 
 
-    axs[i].plot(timestamps, x, label='X estimado', color='C0',color='r') 
-    axs[i].plot(timestamps, y, label='Y estimado', color='C1',color='g')
-    axs[i].plot(timestamps, z, label='Z estimado', color='C2',color='b')
+    axs[i].plot(timestamps, x, label='X estimado',color='r') 
+    axs[i].plot(timestamps, y, label='Y estimado', color='g')
+    axs[i].plot(timestamps, z, label='Z estimado', color='b')
 
     # Referencias reales de la baliza
     ref = beacon_refs.loc[beacon_id]

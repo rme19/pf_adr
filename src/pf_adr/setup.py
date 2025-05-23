@@ -32,6 +32,7 @@ setup(
             'beacon_node = pf_adr.beacon:main',
             'particle_filter_node2 = pf_adr.particle_node_2:main',
             'particle_filter_node3 = pf_adr.particle_node_3:main',
+            'particle_filter_node_ekf = pf_adr.particle_node_ekf:main',
             'beacon_activity_control = pf_adr.beacon_activity_control:main',
         ],
     },

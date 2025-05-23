@@ -95,7 +95,7 @@ def generate_launch_description():
         particle_filter_nodes.append(
             Node(
                 package='pf_adr',
-                executable='particle_filter_node',
+                executable='particle_filter_node_ekf',
                 name=f'particle_filter_node_{i}',
                 parameters=[{
                     'total_num_particles': 5000,
