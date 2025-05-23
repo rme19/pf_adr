@@ -1,0 +1,94 @@
+import rclpy
+from rclpy.node import Node
+from geometry_msgs.msg import PoseWithCovarianceStamped
+from nav_msgs.msg import Odometry
+from std_msgs.msg import Float64 
+import numpy as np
+
+class EKFBeaconNode(Node):
+    def __init__(self):
+        super().__init__('ekf_beacon_node')
+
+        # Suscriptores
+        self.create_subscription(Float64, '/beacon_0/distance_to_target', self.distance_callback, 10)
+        self.create_subscription(Odometry, '/simple_drone/odom', self.odom_callback, 10)
+        self.create_subscription(PoseWithCovarianceStamped, '/pf_beacon_init', self.pf_callback, 10)
+
+        # Publicador del estado estimado
+        self.est_pub = self.create_publisher(PoseWithCovarianceStamped, '/ekf_beacon_estimate', 10)
+
+        # Estado EKF (x, y, z) y su covarianza
+        self.x = None
+        self.Sigma = None
+
+        # Ruido de proceso y de medida
+        self.Q = np.eye(3) * 1e-6    # Baja incertidumbre porque la baliza es estática
+        self.R = 0.05 ** 2           # Varianza del ruido de medición de distancia
+
+        # Posición actual del dron
+        self.drone_pos = None
+
+    def pf_callback(self, msg):
+        data = msg.pose.pose.position
+        self.x = np.array([data.x, data.y, data.z])        
+        cov = np.array(msg.pose.covariance).reshape((6, 6))
+        self.Sigma = cov[:3, :3]
+        self.get_logger().info(f"Posicion: {self.x}    Covariance: {self.Sigma}")
+
+    def odom_callback(self, msg):
+        self.drone_pos = np.array([
+            msg.pose.pose.position.x,
+            msg.pose.pose.position.y,
+            msg.pose.pose.position.z
+        ])
+        # self.get_logger().info(f"Posicion dron: {self.drone_pos}")
+
+    def distance_callback(self, msg):
+        if self.x is None or self.Sigma is None or self.drone_pos is None:
+            # self.get_logger().info("Esperando datos de la baliza y el dron...")
+            return  # aún no tenemos todo
+
+        z = msg.data  # distancia medida
+        h = np.linalg.norm(self.x - self.drone_pos)  # distancia estimada
+
+        # Jacobiano H (derivada de la distancia respecto a x)
+        delta = self.x - self.drone_pos
+        dist = np.linalg.norm(delta)
+        if dist < 1e-6:
+            dist = 1e-6  # evitar división por cero
+        H = delta.reshape(1, 3) / dist  # 1x3
+
+        # Predicción (trivial porque la baliza es estática)
+        x_pred = self.x
+        Sigma_pred = self.Sigma + self.Q
+
+        # Innovación
+        y = z - h
+        S = H @ Sigma_pred @ H.T + self.R
+        K = Sigma_pred @ H.T @ np.linalg.inv(S)  # 3x1
+
+        # Corrección
+        self.x = x_pred + (K.flatten() * y)
+        self.Sigma = (np.eye(3) - K @ H) @ Sigma_pred
+
+        # self.get_logger().info(f"Estado estimado: {self.x}    Covariance: {self.Sigma}")
+
+        msg = PoseWithCovarianceStamped()
+        msg.header.stamp = self.get_clock().now().to_msg()
+        msg.header.frame_id = "map"  # o el frame adecuado
+        msg.pose.pose.position.x = self.x[0]
+        msg.pose.pose.position.y = self.x[1]
+        msg.pose.pose.position.z = self.x[2]
+
+        # Convertir self.Sigma (3x3) a la parte de posición de la matriz 6x6
+        cov_full = np.zeros((6, 6))
+        cov_full[:3, :3] = self.Sigma
+        msg.pose.covariance = cov_full.flatten().tolist()
+
+        self.est_pub.publish(msg)
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = EKFBeaconNode()
+    rclpy.spin(node)
+    rclpy.shutdown()

@@ -153,6 +153,14 @@ def generate_launch_description():
             output='screen',
         ),
 
+        Node(
+            package='pf_adr',
+            executable='ekf_filter',
+            name='ekf_filter',
+            namespace=model_ns,
+            output='screen',
+        ),
+
         # Añadimos todos los nodos de filtros de partículas aquí
         *particle_filter_nodes,
 

@@ -2,7 +2,7 @@ import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64
-from geometry_msgs.msg import PoseStamped, PoseArray, Pose
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, PoseArray, Pose
 import numpy as np
 import csv
 import os
@@ -28,8 +28,6 @@ class BeaconParticleFilter(Node):
         self.declare_parameter('init_z_range', [0.0, 1.0])
         self.declare_parameter('noise_pos_drone',[0.003, 0.003, 0.002])
         self.declare_parameter('noise_dist',0.003)
-        
-
         
         self.num_particles = self.get_parameter('num_particles').value
         self.sigma = self.get_parameter('sigma').value
@@ -61,12 +59,17 @@ class BeaconParticleFilter(Node):
         self.current_drone_position = None
         self.current_distance = None
 
+        self.gaussian = False  # Variable para controlar la gaussianidad
+
         # Topic distance_to_target específico de la baliza
         distance_topic = f'/beacon_{self.beacon_id}/distance_to_target'
 
         # Subscripciones
         self.create_subscription(Odometry, '/simple_drone/odom', self.odom_callback, 10)
         self.create_subscription(Float64, distance_topic, self.distance_callback, 10)
+        # Publicador del estado estimado
+        self.ekf_pub = self.create_publisher(PoseWithCovarianceStamped, f'/pf_beacon_init', 10)
+
 
         # Publicadores con topics específicos
         self.pose_pub = self.create_publisher(PoseStamped, f'/pf/beacon_{self.beacon_id}/estimate', 10)
@@ -105,7 +108,7 @@ class BeaconParticleFilter(Node):
             self.current_distance = msg.data + noise_distance
 
     def update_filter(self):
-        if self.current_drone_position is None or self.current_distance is None:
+        if self.current_drone_position is None or self.current_distance is None or self.gaussian is True:
             return
 
         diffs = self.particles - self.current_drone_position
@@ -121,8 +124,16 @@ class BeaconParticleFilter(Node):
         self.publish_estimate()
         self.publish_particles()
 
-        # Check gaussianity every second
+        # # Check gaussianity every second
+        # # if int((self.get_clock().now() - self.start_time).nanoseconds * 1e-9) % 1 == 0:
+        # media = np.average(self.particles, axis=0, weights=self.weights)
+        # self.get_logger().info(f"Media de partículas: {media}")
+        # error = self.current_distance - np.mean(np.linalg.norm(diffs))
+        # self.get_logger().info(f"Error de distancia: {error}")
+        # # Comprobamos si el error absoluto es menor que un umbral
+        # if np.all(np.abs(error) < 0.3):
         if int((self.get_clock().now() - self.start_time).nanoseconds * 1e-9) % 1 == 0:
+            # self.get_logger().info("Error de distancia aceptable, verificando gaussianidad.")
             self.check_gaussianity()
 
     def check_gaussianity(self):
@@ -136,14 +147,40 @@ class BeaconParticleFilter(Node):
             stat, p = normaltest(self.particles[:, i], axis=0)
             results.append((stat, p))
 
-        self.get_logger().info("Test de normalidad por dimensión (stat, p): " + str(results))
+        # self.get_logger().info("Test de normalidad por dimensión (stat, p): " + str(results))
         self.get_logger().info("P valor: " + str(p))
         # Puedes definir un umbral de p-valor típico (ej. 0.05)
         all_gaussian = all(p > 0.01 for (_, p) in results)
         if all_gaussian:
             self.get_logger().info("⚠️ La distribución de partículas parece gaussiana.")
+            
+            self.msg_ekf = PoseWithCovarianceStamped()
+            self.msg_ekf.header.stamp = self.get_clock().now().to_msg()
+            self.msg_ekf.header.frame_id = 'map'
+
+            # Asignar la posición media
+            self.msg_ekf.pose.pose.position.x = mean[0]
+            self.msg_ekf.pose.pose.position.y = mean[1]
+            self.msg_ekf.pose.pose.position.z = mean[2]
+
+            # Asignar orientación por defecto (no estimamos orientación aquí)
+            self.msg_ekf.pose.pose.orientation.w = 1.0
+
+            # Construir matriz de covarianza 6x6
+            cov_6x6 = np.zeros((6, 6))
+            cov_6x6[0:3, 0:3] = cov  # Solo usamos las 3 primeras dimensiones
+
+            # Convertir a lista de 36 elementos (orden fila mayor)
+            self.msg_ekf.pose.covariance = cov_6x6.flatten().tolist()
+
+            self.ekf_pub.publish(self.msg_ekf)
+            self.get_logger().info("✅ La distribución es gaussiana. Publicando estado EKF.")
+            self.get_logger().info("Posición estimada: " + str(mean) + " Covarianza: " + str(cov))
+
+            self.gaussian = True
         else:
-            self.get_logger().info("❌ La distribución NO es gaussiana. No conviene usar EKF todavía.")
+            pass
+            # self.get_logger().info("❌ La distribución NO es gaussiana. No conviene usar EKF todavía.")
 
     def effective_sample_size(self):
         return 1.0 / np.sum(np.square(self.weights))
