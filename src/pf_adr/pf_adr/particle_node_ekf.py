@@ -61,15 +61,11 @@ class BeaconParticleFilter(Node):
 
         self.gaussian = False  # Variable para controlar la gaussianidad
 
-        # Topic distance_to_target específico de la baliza
-        distance_topic = f'/beacon_{self.beacon_id}/distance_to_target'
-
         # Subscripciones
         self.create_subscription(Odometry, '/simple_drone/odom', self.odom_callback, 10)
-        self.create_subscription(Float64, distance_topic, self.distance_callback, 10)
+        self.create_subscription(Float64, f'/beacon_{self.beacon_id}/distance_to_target', self.distance_callback, 10)
         # Publicador del estado estimado
-        self.ekf_pub = self.create_publisher(PoseWithCovarianceStamped, f'/pf_beacon_init', 10)
-
+        self.ekf_pub = self.create_publisher(PoseWithCovarianceStamped, f'/beacon_{self.beacon_id}/pf_beacon_init', 10)
 
         # Publicadores con topics específicos
         self.pose_pub = self.create_publisher(PoseStamped, f'/pf/beacon_{self.beacon_id}/estimate', 10)
@@ -125,14 +121,7 @@ class BeaconParticleFilter(Node):
         self.publish_particles()
 
         # # Check gaussianity every second
-        # # if int((self.get_clock().now() - self.start_time).nanoseconds * 1e-9) % 1 == 0:
-        # media = np.average(self.particles, axis=0, weights=self.weights)
-        # self.get_logger().info(f"Media de partículas: {media}")
-        # error = self.current_distance - np.mean(np.linalg.norm(diffs))
-        # self.get_logger().info(f"Error de distancia: {error}")
-        # # Comprobamos si el error absoluto es menor que un umbral
-        # if np.all(np.abs(error) < 0.3):
-        if int((self.get_clock().now() - self.start_time).nanoseconds * 1e-9) % 1 == 0:
+        if int((self.get_clock().now() - self.start_time).nanoseconds * 1e-9) % 2 == 0:
             # self.get_logger().info("Error de distancia aceptable, verificando gaussianidad.")
             self.check_gaussianity()
 
@@ -148,7 +137,7 @@ class BeaconParticleFilter(Node):
             results.append((stat, p))
 
         # self.get_logger().info("Test de normalidad por dimensión (stat, p): " + str(results))
-        self.get_logger().info("P valor: " + str(p))
+        # self.get_logger().info("P valor: " + str(p))
         # Puedes definir un umbral de p-valor típico (ej. 0.05)
         all_gaussian = all(p > 0.01 for (_, p) in results)
         if all_gaussian:
@@ -174,7 +163,7 @@ class BeaconParticleFilter(Node):
             self.msg_ekf.pose.covariance = cov_6x6.flatten().tolist()
 
             self.ekf_pub.publish(self.msg_ekf)
-            self.get_logger().info("✅ La distribución es gaussiana. Publicando estado EKF.")
+            self.get_logger().info(f'✅ La distribución de la baliza {self.beacon_id} es gaussiana. Publicando estado EKF.')
             self.get_logger().info("Posición estimada: " + str(mean) + " Covarianza: " + str(cov))
 
             self.gaussian = True

@@ -28,12 +28,12 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'particle_filter_node = pf_adr.particle_node:main',
-            'beacon_node = pf_adr.beacon:main',
-            'particle_filter_node2 = pf_adr.particle_node_2:main',
-            'ekf_filter = pf_adr.ekf_filter:main',
-            'particle_filter_node_ekf = pf_adr.particle_node_ekf:main',
-            'beacon_activity_control = pf_adr.beacon_activity_control:main',
+            'particle_filter_node = pf_adr.particle_node:main', # nodo del filtro de particulas 1
+            'beacon_node = pf_adr.beacon:main', # nodo de la baliza
+            'particle_filter_node2 = pf_adr.particle_node_2:main',  # nodo del filtro de particulas smart
+            'ekf_filter = pf_adr.ekf_filter:main',  #nodo del filtro ekf
+            'particle_filter_node_ekf = pf_adr.particle_node_ekf:main', # nodo del filtro de particulas con ekf
+            'beacon_activity_control = pf_adr.beacon_activity_control:main', # nodo de control de actividad de la baliza para filtro smart
         ],
     },
 )

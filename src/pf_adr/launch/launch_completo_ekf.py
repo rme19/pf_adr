@@ -72,7 +72,7 @@ def generate_launch_description():
     pf_adr_bringup_path = get_package_share_directory('pf_adr')
 
     rviz_path = os.path.join(
-        pf_adr_bringup_path, "rviz", "5_PF.rviz"
+        pf_adr_bringup_path, "rviz", "5_PF_EKF.rviz"
     )
 
     yaml_file_path = os.path.join(
@@ -87,32 +87,38 @@ def generate_launch_description():
         model_ns = yaml_dict["namespace"]
 
     # Número de beacons a lanzar
-    num_beacons = 1
+    num_beacons = 5
 
     # Lista de nodos de filtros de partículas, uno por beacon
     particle_filter_nodes = []
     for i in range(int(num_beacons)):
-        particle_filter_nodes.append(
+        particle_filter_nodes.extend([
             Node(
                 package='pf_adr',
                 executable='particle_filter_node_ekf',
                 name=f'particle_filter_node_{i}',
                 parameters=[{
                     'total_num_particles': 5000,
-                    'total_beacons': num_beacons,
-                    'sigma': 0.1,
-                    'noise_std': 0.1,
-                    'radius': 2.0,
+                    'sigma': 0.3,
+                    'noise_std': 0.3,
+                    'radius': 1.0,
                     'beacon_id': i  # si el nodo usa este parámetro
                 }],
-                remappings=[
-                    ("/distance_to_target", f"/beacon_{i}/distance_to_target"),
-                    ("/pf/beacon_estimate", f"/pf/beacon_{i}/estimate"),
-                    ("/pf/particles", f"/pf/beacon_{i}/particles"),
-                ],
+                output='screen',
+            ),
+
+            Node(
+                package='pf_adr',
+                executable='ekf_filter',
+                name=f'ekf_filter_{i}',
+                parameters=[{
+                    'process_noise': 1e-6,
+                    'measurement_noise': 0.1,
+                    'beacon_id': i  # si el nodo usa este parámetro
+                }],
                 output='screen',
             )
-        )
+        ])
 
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -149,14 +155,6 @@ def generate_launch_description():
             package='joy',
             executable='joy_node',
             name='joy',
-            namespace=model_ns,
-            output='screen',
-        ),
-
-        Node(
-            package='pf_adr',
-            executable='ekf_filter',
-            name='ekf_filter',
             namespace=model_ns,
             output='screen',
         ),

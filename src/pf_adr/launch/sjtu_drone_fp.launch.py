@@ -64,7 +64,7 @@ def generate_launch_description():
 
     # Generar balizas aleatorias
     spawn_beacons_actions = []
-    num_beacons = 1  # Número de balizas a generar
+    num_beacons = 5  # Número de balizas a generar
     # Obtener la ruta del modelo de la baliza
 
 
@@ -76,8 +76,19 @@ def generate_launch_description():
     # Generar posiciones aleatorias para las balizas
     # y crear acciones de spawn
     for i in range(num_beacons):
-        x = random.uniform(-10.0, 10.0)
-        y = random.uniform(-10.0, 10.0)
+        # x = random.uniform(-10.0, 10.0)
+        # y = random.uniform(-10.0, 10.0)
+        # z = random.uniform(0.5, 3.0)
+        if random.random() < 0.5:
+            x = random.uniform(-10.0, -4.0)
+        else:
+            x = random.uniform(4.0, 10.0)
+
+        if random.random() < 0.5:
+            y = random.uniform(-10.0, -4.0)
+        else:
+            y = random.uniform(4.0, 10.0)
+
         z = random.uniform(0.5, 3.0)
 
         spawn_beacons_actions.append(

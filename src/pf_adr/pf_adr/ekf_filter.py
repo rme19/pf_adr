@@ -9,21 +9,32 @@ class EKFBeaconNode(Node):
     def __init__(self):
         super().__init__('ekf_beacon_node')
 
+
+        self.declare_parameter('beacon_id', 0)
+        self.beacon_id = self.get_parameter('beacon_id').value
+
+        # Parámetros del filtro
+        self.declare_parameter('process_noise', 1e-6)
+        self.declare_parameter('measurement_noise', 0.1)
+
+        self.process_noise = self.get_parameter('process_noise').value
+        self.measurement_noise = self.get_parameter('measurement_noise').value
+
         # Suscriptores
-        self.create_subscription(Float64, '/beacon_0/distance_to_target', self.distance_callback, 10)
+        self.create_subscription(Float64, f'/beacon_{self.beacon_id}/distance_to_target', self.distance_callback, 10)
         self.create_subscription(Odometry, '/simple_drone/odom', self.odom_callback, 10)
-        self.create_subscription(PoseWithCovarianceStamped, '/pf_beacon_init', self.pf_callback, 10)
+        self.create_subscription(PoseWithCovarianceStamped, f'/beacon_{self.beacon_id}/pf_beacon_init', self.pf_callback, 10)
 
         # Publicador del estado estimado
-        self.est_pub = self.create_publisher(PoseWithCovarianceStamped, '/ekf_beacon_estimate', 10)
+        self.est_pub = self.create_publisher(PoseWithCovarianceStamped, f'/beacon_{self.beacon_id}/ekf_beacon_estimate', 10)
 
         # Estado EKF (x, y, z) y su covarianza
         self.x = None
         self.Sigma = None
 
         # Ruido de proceso y de medida
-        self.Q = np.eye(3) * 1e-6    # Baja incertidumbre porque la baliza es estática
-        self.R = 0.05 ** 2           # Varianza del ruido de medición de distancia
+        self.Q = np.eye(3) * self.process_noise    # Baja incertidumbre porque la baliza es estática
+        self.R = self.measurement_noise ** 2           # Varianza del ruido de medición de distancia
 
         # Posición actual del dron
         self.drone_pos = None
@@ -33,7 +44,8 @@ class EKFBeaconNode(Node):
         self.x = np.array([data.x, data.y, data.z])        
         cov = np.array(msg.pose.covariance).reshape((6, 6))
         self.Sigma = cov[:3, :3]
-        self.get_logger().info(f"Posicion: {self.x}    Covariance: {self.Sigma}")
+        # self.get_logger().info(f"Posicion: {self.x}    Covariance: {self.Sigma}")
+        self.get_logger().info(f"Arrancando EKF para baliza {self.beacon_id}")
 
     def odom_callback(self, msg):
         self.drone_pos = np.array([

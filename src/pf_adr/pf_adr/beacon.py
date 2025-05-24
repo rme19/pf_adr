@@ -83,7 +83,7 @@ class DistanceToTargetNode(Node):
             (drone_z - self.target_position[2]) ** 2
         )
         # Comprobar si la distancia esta dentro del limite de deteccion
-        if distance > 6.0:
+        if distance > 5.0:
             distance = -1.0       
         
         else:
