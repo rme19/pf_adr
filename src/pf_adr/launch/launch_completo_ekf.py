@@ -99,8 +99,8 @@ def generate_launch_description():
                 name=f'particle_filter_node_{i}',
                 parameters=[{
                     'total_num_particles': 5000,
-                    'sigma': 0.3,
-                    'noise_std': 0.3,
+                    'sigma': 0.1,
+                    'noise_std': 0.1,
                     'radius': 1.0,
                     'beacon_id': i  # si el nodo usa este parámetro
                 }],

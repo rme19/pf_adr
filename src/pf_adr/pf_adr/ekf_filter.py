@@ -71,6 +71,12 @@ class EKFBeaconNode(Node):
         # self.get_logger().info(f"Posicion dron: {self.drone_pos}")
 
     def distance_callback(self, msg):
+        
+        if msg.data < 0.0:
+            z = None
+        else:
+            z = msg.data  # distancia medida
+            
         if self.x is None or self.Sigma is None or self.drone_pos is None:
             # self.get_logger().info("Esperando datos de la baliza y el dron...")
             return  # aún no tenemos todo
