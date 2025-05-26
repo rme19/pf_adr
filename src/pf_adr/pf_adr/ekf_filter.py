@@ -17,7 +17,7 @@ class EKFBeaconNode(Node):
         self.beacon_id = self.get_parameter('beacon_id').value
 
         # Parámetros del filtro
-        self.declare_parameter('process_noise', 1e-6)
+        self.declare_parameter('process_noise', 0.001)
         self.declare_parameter('measurement_noise', 0.1)
 
         self.process_noise = self.get_parameter('process_noise').value
@@ -77,11 +77,10 @@ class EKFBeaconNode(Node):
         else:
             z = msg.data  # distancia medida
             
-        if self.x is None or self.Sigma is None or self.drone_pos is None:
+        if self.x is None or self.Sigma is None or self.drone_pos is None or z is None:
             # self.get_logger().info("Esperando datos de la baliza y el dron...")
             return  # aún no tenemos todo
 
-        z = msg.data  # distancia medida
         h = np.linalg.norm(self.x - self.drone_pos)  # distancia estimada
 
         # Jacobiano H (derivada de la distancia respecto a x)

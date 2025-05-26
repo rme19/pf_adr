@@ -71,7 +71,7 @@ class BeaconParticleFilter(Node):
         self.pose_pub = self.create_publisher(PoseStamped, f'/pf/beacon_{self.beacon_id}/estimate', 10)
         self.particles_pub = self.create_publisher(PoseArray, f'/pf/beacon_{self.beacon_id}/particles', 10)
 
-        self.timer = self.create_timer(0.05, self.update_filter)
+        self.timer = self.create_timer(0.1, self.update_filter)
         self.get_logger().info(f'Filtro de partículas para baliza {self.beacon_id} inicializado.')
 
         self.start_time = self.get_clock().now()
@@ -125,7 +125,7 @@ class BeaconParticleFilter(Node):
         self.weights += 1e-300
         self.weights /= np.sum(self.weights)
 
-        if self.effective_sample_size() < self.num_particles / 2:
+        if self.effective_sample_size() < self.num_particles * 0.7:
             self.resample_particles()
 
         self.publish_estimate()
@@ -150,7 +150,7 @@ class BeaconParticleFilter(Node):
         # self.get_logger().info("Test de normalidad por dimensión (stat, p): " + str(results))
         # self.get_logger().info("P valor: " + str(p))
         # Puedes definir un umbral de p-valor típico (ej. 0.05)
-        all_gaussian = all(p > 0.01 for (_, p) in results)
+        all_gaussian = all(p > 0.09 for (_, p) in results)
         if all_gaussian:
             self.get_logger().info("⚠️ La distribución de partículas parece gaussiana.")
             

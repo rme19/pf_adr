@@ -61,14 +61,14 @@ for i, beacon_id in enumerate(beacon_ids):
 
     # Graficar
     ax = axs[i]
-    ax.plot(t, x, label='X estimado', color='C0')
-    ax.plot(t, y, label='Y estimado', color='C1')
-    ax.plot(t, z, label='Z estimado', color='C2')
+    ax.plot(t, x, label='X estimado', color='r')
+    ax.plot(t, y, label='Y estimado', color='g')
+    ax.plot(t, z, label='Z estimado', color='b')
 
     ax.axvline(x=ekf_start_time, color='purple', linestyle='--', label='Inicio EKF')
-    ax.hlines(x_ref, t[0], t[-1], color='C0', linestyle='dashed', label='X real')
-    ax.hlines(y_ref, t[0], t[-1], color='C1', linestyle='dashed', label='Y real')
-    ax.hlines(z_ref, t[0], t[-1], color='C2', linestyle='dashed', label='Z real')
+    ax.hlines(x_ref, t[0], t[-1], color='r', linestyle='dashed', label='X real')
+    ax.hlines(y_ref, t[0], t[-1], color='g', linestyle='dashed', label='Y real')
+    ax.hlines(z_ref, t[0], t[-1], color='b', linestyle='dashed', label='Z real')
 
     ax.set_title(f'Estimación Beacon {beacon_id}')
     ax.set_ylabel('Coordenada (m)')

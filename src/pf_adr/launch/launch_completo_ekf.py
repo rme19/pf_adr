@@ -98,7 +98,7 @@ def generate_launch_description():
                 executable='particle_filter_node_ekf',
                 name=f'particle_filter_node_{i}',
                 parameters=[{
-                    'total_num_particles': 5000,
+                    'total_num_particles': 1000,
                     'sigma': 0.1,
                     'noise_std': 0.1,
                     'radius': 1.0,
@@ -112,7 +112,7 @@ def generate_launch_description():
                 executable='ekf_filter',
                 name=f'ekf_filter_{i}',
                 parameters=[{
-                    'process_noise': 1e-6,
+                    'process_noise': 0.001,
                     'measurement_noise': 0.1,
                     'beacon_id': i  # si el nodo usa este parámetro
                 }],
