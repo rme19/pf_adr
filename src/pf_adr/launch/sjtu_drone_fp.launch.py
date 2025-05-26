@@ -64,7 +64,7 @@ def generate_launch_description():
 
     # Generar balizas aleatorias
     spawn_beacons_actions = []
-    num_beacons = 5  # Número de balizas a generar
+    num_beacons = 3  # Número de balizas a generar
     # Obtener la ruta del modelo de la baliza
 
 

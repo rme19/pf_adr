@@ -53,7 +53,7 @@ class BeaconParticleFilter(Node):
         self.csv_writer.writerow(['timestamp', 'x_mean', 'y_mean', 'z_mean'])
 
 
-        self.particles = self.initialize_particles2()
+        self.particles = self.initialize_particles_cube()
         self.weights = np.ones(self.num_particles) / self.num_particles
 
         self.current_drone_position = None
@@ -75,6 +75,17 @@ class BeaconParticleFilter(Node):
         self.get_logger().info(f'Filtro de partículas para baliza {self.beacon_id} inicializado.')
 
         self.start_time = self.get_clock().now()
+
+    def initialize_particles_cube(self):
+        """
+        Inicializa partículas uniformemente dentro de un cubo definido por los rangos
+        self.init_x_range, self.init_y_range y self.init_z_range.
+        """
+        x = np.random.uniform(self.init_x_range[0], self.init_x_range[1], self.num_particles)
+        y = np.random.uniform(self.init_y_range[0], self.init_y_range[1], self.num_particles)
+        z = np.random.uniform(self.init_z_range[0], self.init_z_range[1], self.num_particles)
+
+        return np.stack([x, y, z], axis=-1)
 
     def initialize_particles2(self):
         phi = np.random.uniform(0, 2 * np.pi, self.num_particles)

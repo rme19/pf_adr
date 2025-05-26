@@ -3,79 +3,78 @@ import matplotlib.pyplot as plt
 import os
 import glob
 
-# Ruta base para los archivos CSV
+# Ruta base donde están los CSV
 csv_dir = os.path.expanduser('~/pf_logs')
 
-# Cargar datos de referencia de las balizas
-beacon_ref_path = os.path.join(csv_dir, 'beacon_positions.csv')
-beacon_refs = pd.read_csv(beacon_ref_path, index_col='beacon_id')
+# Leer archivo con posiciones reales de balizas
+ref_path = os.path.join(csv_dir, 'beacon_positions.csv')
+ref_df = pd.read_csv(ref_path, index_col='beacon_id')  # Asegúrate de que "beacon_id" sea la columna clave
 
-# Leer los tiempos de inicio EKF sin comentarios, CSV limpio
-ekf_start_path = os.path.join(csv_dir, 'ekf_start_times.csv')
-ekf_start_df = pd.read_csv(ekf_start_path)
-ekf_start_dict = dict(zip(ekf_start_df['beacon_id'], ekf_start_df['ekf_start_time']))
+# Buscar archivos del filtro de partículas y EKF
+pf_files = sorted(glob.glob(os.path.join(csv_dir, 'pf_means_*.csv')))
+ekf_files = sorted(glob.glob(os.path.join(csv_dir, 'pf_means_ekf_*.csv')))
 
-# Buscar y ordenar todos los archivos pf_means_*.csv
-csv_files = sorted(glob.glob(os.path.join(csv_dir, 'pf_means_*.csv')))
+# Filtrar solo los archivos de PF (que no son EKF)
+pf_files = [f for f in pf_files if 'ekf' not in f]
 
-dfs = []
-beacon_ids = []
-for file in csv_files:
-    # Ignorar líneas comentadas si las hay
-    df = pd.read_csv(file, comment='#')
-    dfs.append(df)
-    beacon_id = int(os.path.splitext(os.path.basename(file))[0].split('_')[-1])
-    beacon_ids.append(beacon_id)
+# Asociar balizas por ID
+beacon_ids = [int(os.path.splitext(os.path.basename(f))[0].split('_')[-1]) for f in pf_files]
 
-# Cargar CSV con distribución de partículas (ignorando comentarios)
-particle_dist_path = os.path.join(csv_dir, 'pf_particles.csv')
-particle_df = pd.read_csv(particle_dist_path, comment='#')
+# Crear subplots
+num_beacons = len(beacon_ids)
+fig, axs = plt.subplots(num_beacons, 1, figsize=(12, 4 * num_beacons), sharex=True)
 
-# Número de subplots = cantidad de balizas + 1 extra para partículas
-num_plots = len(dfs) + 1
-
-fig, axs = plt.subplots(num_plots, 1, figsize=(10, 4 * num_plots), sharex=True)
-if num_plots == 1:
+if num_beacons == 1:
     axs = [axs]
 
-# Graficar para cada baliza
-for i, (df, beacon_id) in enumerate(zip(dfs, beacon_ids)):
-    timestamps = pd.to_numeric(df['timestamp']).to_numpy()
+# Procesar cada baliza
+for i, beacon_id in enumerate(beacon_ids):
+    pf_file = os.path.join(csv_dir, f'pf_means_{beacon_id}.csv')
+    ekf_file = os.path.join(csv_dir, f'pf_means_ekf_{beacon_id}.csv')
+
+    if not os.path.exists(pf_file) or not os.path.exists(ekf_file):
+        print(f"[!] Archivos faltantes para beacon {beacon_id}")
+        continue
+
+    # Cargar datos
+    pf_df = pd.read_csv(pf_file)
+    ekf_df = pd.read_csv(ekf_file)
+
+    # Tiempo donde comienza EKF
+    ekf_start_time = ekf_df['timestamp'].iloc[0]
+
+    # Concatenar y ordenar
+    df = pd.concat([pf_df, ekf_df], ignore_index=True).sort_values(by='timestamp')
+
+    t = df['timestamp'].to_numpy()
     x = df['x_mean'].to_numpy()
     y = df['y_mean'].to_numpy()
     z = df['z_mean'].to_numpy()
 
-    axs[i].plot(timestamps, x, label='X estimado', color='C0')
-    axs[i].plot(timestamps, y, label='Y estimado', color='C1')
-    axs[i].plot(timestamps, z, label='Z estimado', color='C2')
+    # Referencia real
+    if beacon_id not in ref_df.index:
+        print(f"[!] Beacon ID {beacon_id} no encontrado en beacon_positions.csv")
+        continue
+    x_ref = ref_df.loc[beacon_id, 'x']
+    y_ref = ref_df.loc[beacon_id, 'y']
+    z_ref = ref_df.loc[beacon_id, 'z']
 
-    # Referencias reales de la baliza
-    ref = beacon_refs.loc[beacon_id]
-    axs[i].hlines(ref['x'], timestamps[0], timestamps[-1], colors='C0', linestyles='dashed', label='X referencia')
-    axs[i].hlines(ref['y'], timestamps[0], timestamps[-1], colors='C1', linestyles='dashed', label='Y referencia')
-    axs[i].hlines(ref['z'], timestamps[0], timestamps[-1], colors='C2', linestyles='dashed', label='Z referencia')
+    # Graficar
+    ax = axs[i]
+    ax.plot(t, x, label='X estimado', color='C0')
+    ax.plot(t, y, label='Y estimado', color='C1')
+    ax.plot(t, z, label='Z estimado', color='C2')
 
-    # Línea vertical EKF start para esta baliza
-    ekf_start = ekf_start_dict.get(beacon_id, None)
-    if ekf_start is not None and timestamps[0] <= ekf_start <= timestamps[-1]:
-        axs[i].axvline(x=ekf_start, color='purple', linestyle='-.', label='EKF start')
+    ax.axvline(x=ekf_start_time, color='purple', linestyle='--', label='Inicio EKF')
+    ax.hlines(x_ref, t[0], t[-1], color='C0', linestyle='dashed', label='X real')
+    ax.hlines(y_ref, t[0], t[-1], color='C1', linestyle='dashed', label='Y real')
+    ax.hlines(z_ref, t[0], t[-1], color='C2', linestyle='dashed', label='Z real')
 
-    axs[i].set_ylabel('Coordenada estimada (m)')
-    axs[i].set_title(f'Convergencia Filtro Partículas - Beacon {beacon_id}')
-    axs[i].legend(loc='upper right')
-    axs[i].grid(True)
+    ax.set_title(f'Estimación Beacon {beacon_id}')
+    ax.set_ylabel('Coordenada (m)')
+    ax.grid(True)
+    ax.legend(loc='upper right')
 
-# Graficar distribución de partículas en el subplot extra
-timestamps = pd.to_numeric(particle_df['timestamp']).to_numpy()
-for col in particle_df.columns:
-    if col != 'timestamp':
-        axs[-1].plot(timestamps, particle_df[col].to_numpy(), label=col)
-
-axs[-1].set_title('Distribución de partículas asignadas por baliza')
-axs[-1].set_ylabel('Cantidad de partículas')
 axs[-1].set_xlabel('Tiempo (s)')
-axs[-1].legend(loc='upper right')
-axs[-1].grid(True)
-
 plt.tight_layout()
 plt.show()

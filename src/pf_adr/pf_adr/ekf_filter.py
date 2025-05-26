@@ -4,6 +4,9 @@ from geometry_msgs.msg import PoseWithCovarianceStamped
 from nav_msgs.msg import Odometry
 from std_msgs.msg import Float64 
 import numpy as np
+import csv
+import os
+from datetime import datetime
 
 class EKFBeaconNode(Node):
     def __init__(self):
@@ -28,6 +31,17 @@ class EKFBeaconNode(Node):
         # Publicador del estado estimado
         self.est_pub = self.create_publisher(PoseWithCovarianceStamped, f'/beacon_{self.beacon_id}/ekf_beacon_estimate', 10)
 
+        # Creación de directorio y archivo CSV
+        log_dir = os.path.expanduser('~/pf_logs')  # Asegúrate de que este directorio sea correcto
+        os.makedirs(log_dir, exist_ok=True)  # Crear la carpeta si no existe
+        self.csv_path = os.path.join(log_dir, f'pf_means_ekf_{self.beacon_id}.csv')
+
+
+        # Crear y abrir el archivo CSV
+        self.csv_file = open(self.csv_path, mode='w', newline='')
+        self.csv_writer = csv.writer(self.csv_file)
+        self.csv_writer.writerow(['timestamp', 'x_mean', 'y_mean', 'z_mean'])
+
         # Estado EKF (x, y, z) y su covarianza
         self.x = None
         self.Sigma = None
@@ -38,6 +52,7 @@ class EKFBeaconNode(Node):
 
         # Posición actual del dron
         self.drone_pos = None
+        self.start_time2 = self.get_clock().now()
 
     def pf_callback(self, msg):
         data = msg.pose.pose.position
@@ -99,8 +114,14 @@ class EKFBeaconNode(Node):
 
         self.est_pub.publish(msg)
 
+        # Guardar en el CSV
+        elapsed_time2 = (self.get_clock().now() - self.start_time2).nanoseconds * 1e-9
+        self.csv_writer.writerow([elapsed_time2, self.x[0], self.x[1], self.x[2]])
+        self.csv_file.flush()
+
 def main(args=None):
     rclpy.init(args=args)
     node = EKFBeaconNode()
     rclpy.spin(node)
+    node.csv_file.close()
     rclpy.shutdown()
