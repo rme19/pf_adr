@@ -87,7 +87,7 @@ def generate_launch_description():
         model_ns = yaml_dict["namespace"]
 
     # Número de beacons a lanzar
-    num_beacons = 1
+    num_beacons = 3
 
     # Lista de nodos de filtros de partículas, uno por beacon
     particle_filter_nodes = []
@@ -100,8 +100,8 @@ def generate_launch_description():
                 parameters=[{
                     'total_num_particles': 5000,
                     'total_beacons': num_beacons,
-                    'sigma': 0.1,
-                    'noise_std': 0.1,
+                    'sigma': 0.3,
+                    'noise_std': 0.3,
                     'radius': 2.0,
                     'beacon_id': i  # si el nodo usa este parámetro
                 }],

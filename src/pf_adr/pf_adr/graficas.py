@@ -21,6 +21,11 @@ particle_df = pd.read_csv(particle_dist_path)
 dfs = []
 beacon_ids = []
 for file in csv_files:
+    #Si el archivo es de EKF, lo ignoramos
+    if 'ekf' in os.path.basename(file):
+        continue
+
+
     df = pd.read_csv(file)
     beacon_id = int(os.path.splitext(os.path.basename(file))[0].split('_')[-1])
     dfs.append(df)
