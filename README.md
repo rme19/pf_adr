@@ -3,8 +3,7 @@
 Este paquete de ROS2 ha sido creado para implementar un filtro de partículas para estimar la posición de un número establecido de balizas. Se han creado tres posibles implementaciones: 
 - Filtro de partículas básico: lanza un nodo de filtro de partículas por cada baliza, estimando la posición de la baliza con un número constante de puntos en cada nube de partículas.
 - Filtro de partículas "smart": este filtro también lanza un filtro de partículas por cada baliza, pero recibe información sobre el número de balizas activas que hay en cada momento, permitiendo mantener un número constante de partículas en general, es decir, la suma de las partículas de todos los nodos es constante.
-- Filtro de partículas con EKF: por último, se ha creado un filtro de partículas, basado en el filtro de partículas básico, que realiza pruebas de gausianidad sobre la nube de partículas y, cuando supera un cierto umbral, aproxima la nube de partículas por una media y una covarianza y se le pasa a un nodo que implementa EKF, permitiendo reducir el coste computacional. El EKF continuará estimando la posición de la baliza con el dato que ha recibido del PF. 
-
+- Filtro de partículas con EKF: por último, se ha creado un filtro de partículas, basado en el filtro de partículas básico, que realiza pruebas de gausianidad sobre la nube de partículas y, cuando supera un cierto umbral, aproxima la nube de partículas por una media y una matriz de covarianza. Estos datos se le pasan a un nodo que implementa un EKF, permitiendo reducir el coste computacional. El EKF continuará estimando la posición de la baliza con el dato que ha recibido del PF. 
 
 ## Instalación:
 Primero crearemos un workspace y una carpeta *src*:
@@ -13,13 +12,20 @@ mkdir -p ros2_ws/src
 cd ros2_ws/src
 ```
 Para clonar el repositorio con el submodulo del sjtu:
-
 ```Terminal
 git clone --recurse-submodules https://github.com/rme19/pf_adr.git 
 ```
 
 ## Utilización:
 Para una mayor sencillez, se han creado archivos para lanzar todas las aplicaciones y nodos necesarios, además de la configuración del número de balizas que estimaremos y parámetros del filtro de partículas (número de partículas, ruidos...). 
+
+Para conocer la posición exacta de las balizas, deberemos hacerlo con el comando: 
+```Terminal
+ros2 param get beacon_node_{id}/target_position
+```
+siendo `{id}` el número identificador de la baliza a la que queramos referirnos.
+
+Todas las implementaciones generan archivos `.csv` que se guardarán en el directorio `$HOME` y se utilizarán para la representación de gráficas con los resultados de los experimentos.
 
 ### Filtro de partículas básico
 Como hemos dicho anteriormente, esta implementación consiste en la utilización de un filtro de partículas con un número constante de partículas para la estimación de la posición de una baliza fija. 
@@ -66,3 +72,25 @@ source install/setup.bash
 ros2 launch pf_adr launch_completo_ekf.py 
 ```
 Automáticamente se nos debería abrir la simulación de Gazebo, el teleop para poder controlar el dron y una pestaña de RViz con la configuración para poder visualizar las nubes de partículas. Además, tendremos funcionando N nodos de balizas, N nodos de filtros de partículas y N nodos de filtro de Kalman extendido, siendo N el número de balizas que hemos configurado.
+
+## Gráficas
+Para la correcta visualización de los resultados, se han creado 3 scripts de Python que toman los datos generados por los nodos de las balizas en los archivos `.csv`. Para ejecutar dichos scripts, deberemos navegar hasta el directorio `pf_adr/src/pf_adr/pf_adr` de nuestro repositorio, es decir: 
+```Terminal
+cd ~/ros2_ws/src/pf_adr/src/pf_adr/pf_adr
+```
+Una vez aquí, ecutaremos el script de Python correspondiente a cada implementación.
+
+Para la primera implementación (filtro de partículas básico): 
+```Terminal
+python3 graficas_sin_num_particulas.py
+```
+
+Para la segunda implementación (filtro de partículas "smart"): 
+```Terminal
+python3 graficas.py
+```
+
+Para la tercera implementación (filtro de partículas con EKF): 
+```Terminal
+python3 graficas_ekf.py
+```
