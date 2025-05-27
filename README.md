@@ -25,7 +25,7 @@ ros2 param get beacon_node_{id}/target_position
 ```
 siendo `{id}` el número identificador de la baliza a la que queramos referirnos.
 
-Todas las implementaciones generan archivos `.csv` que se guardarán en el directorio `$HOME` y se utilizarán para la representación de gráficas con los resultados de los experimentos.
+Todas las implementaciones generan archivos `.csv` que se guardarán en el directorio `$HOME/pf_logs` y se utilizarán para la representación de gráficas con los resultados de los experimentos.
 
 ### Filtro de partículas básico
 Como hemos dicho anteriormente, esta implementación consiste en la utilización de un filtro de partículas con un número constante de partículas para la estimación de la posición de una baliza fija. 
@@ -42,7 +42,7 @@ ros2 launch pf_adr launch_completo.py
 Automáticamente se nos debería abrir la simulación de Gazebo, el teleop para poder controlar el dron y una pestaña de RViz con la configuración para poder visualizar las nubes de partículas. Además, tendremos funcionando N nodos de balizas y N nodos de filtros de partículas, siendo N el número de balizas que hemos configurado. 
 
 ### Filtro de partículas "smart"
-Esta implementación se diferencia de la anterior en que recibimos datos de un nodo `activity_beacon_control`, que nos informa sobre el número de balizas activas (dentro de rango) que hay en cada momento y nos permite ajustar el número de partículas con las que trabaja cada filtro en tiempo de ejucion, manteniendo siempre un número global de partículas constante para la estimación.
+Esta implementación se diferencia de la anterior en que recibimos datos de un nodo `activity_beacon_control`, que nos informa sobre el número de balizas activas (dentro de rango) que hay en cada momento y nos permite ajustar el número de partículas con las que trabaja cada filtro en tiempo de ejecucion, manteniendo siempre un número global de partículas constante para la estimación.
 
 Para cambiar el número de balizas que se van a estimar, deberemos modificar el archivo `launch_completo_2.py` y el archivo `sjtu_drone_fp.launch.py` y modificar la variable `num_beacons`. Además, en el archivo `launch_completo_2.py` podremos modificar varios parámetros que se utilizarán en el filtro, como el número de partículas, ruido de resampleo...
 
