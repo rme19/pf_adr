@@ -1,18 +1,4 @@
 #!/usr/bin/env python3
-# Copyright 2023 Georg Novotny
-#
-# Licensed under the GNU GENERAL PUBLIC LICENSE, Version 3.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     https://www.gnu.org/licenses/gpl-3.0.en.html
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import os
 import yaml
 from ament_index_python.packages import get_package_share_directory
@@ -82,7 +68,7 @@ def generate_launch_description():
 
     # Número de beacons a lanzar
     num_beacons = 3
-    total_particles = 15000
+    total_particles = 6000
 
     # Lista de nodos de filtros de partículas, uno por beacon
     particle_filter_nodes = []
@@ -94,11 +80,10 @@ def generate_launch_description():
                 name=f'particle_filter_node_{i}',
                 parameters=[{
                     'total_num_particles': total_particles,
-                    'total_beacons': num_beacons,
                     'sigma': 0.1,
                     'noise_std': 0.1,
                     'radius': 2.5,
-                    'beacon_id': i  # si el nodo usa este parámetro
+                    'beacon_id': i  # Identificador de la baliza
                 }],
                 remappings=[
                     ("/distance_to_target", f"/beacon_{i}/distance_to_target"),
@@ -110,11 +95,6 @@ def generate_launch_description():
         )
 
     return LaunchDescription([
-        DeclareLaunchArgument(
-            'num_beacons',
-            default_value='5',
-            description='Número total de balizas esperadas'
-        ),
         DeclareLaunchArgument(
             "controller",
             default_value="keyboard",
@@ -138,7 +118,6 @@ def generate_launch_description():
             kwargs={'rviz_path': rviz_path},
         ),
 
-
         Node(
             package='joy',
             executable='joy_node',
@@ -153,11 +132,9 @@ def generate_launch_description():
             parameters=[{
                 'num_beacons': num_beacons,
                 'timeout_sec': 1.0,
-                'total_particles': total_particles  # Puedes ajustar este valor según lo que necesites
+                'total_particles': total_particles 
             }]
         ),
-
-
 
         # Añadimos todos los nodos de filtros de partículas aquí
         *particle_filter_nodes,

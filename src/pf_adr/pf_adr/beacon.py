@@ -21,15 +21,6 @@ class DistanceToTargetNode(Node):
         self.target_position = self.get_parameter('target_position').value
 
         # Guardar beacon_id y target_position en un CSV (append)
-        # csv_path = os.path.expanduser('~/ros2_ws/src/pf_adr/pf_logs/beacon_positions.csv')
-        # os.makedirs(os.path.dirname(csv_path), exist_ok=True)
-        # write_header = not os.path.exists(csv_path)
-        # with open(csv_path, mode='a', newline='') as csvfile:
-        #     writer = csv.writer(csvfile)
-        #     if write_header:
-        #         writer.writerow(['beacon_id', 'x', 'y', 'z'])
-        #     writer.writerow([self.beacon_id] + list(self.target_position))
-        # Guardar beacon_id y target_position en un CSV (sobrescribe si es la primera baliza)
         csv_path = os.path.expanduser('~/pf_logs/beacon_positions.csv')
         os.makedirs(os.path.dirname(csv_path), exist_ok=True)
 

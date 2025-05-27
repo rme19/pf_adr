@@ -42,7 +42,7 @@ class BeaconParticleFilter(Node):
         self.name_fichero = ('archivo_csv_' + str(self.beacon_id))
         # Creación de directorio y archivo CSV
         now = datetime.now().strftime('%Y%m%d_%H%M%S')
-        log_dir = os.path.expanduser('~/pf_logs')  # Asegúrate de que este directorio sea correcto
+        log_dir = os.path.expanduser('~/pf_logs') 
         os.makedirs(log_dir, exist_ok=True)  # Crear la carpeta si no existe
         self.csv_path = os.path.join(log_dir, f'pf_means_{self.beacon_id}.csv')
 
@@ -131,7 +131,7 @@ class BeaconParticleFilter(Node):
         self.publish_estimate()
         self.publish_particles()
 
-        # # Check gaussianity every second
+        # Comprueba gaussianidad cada 2 segundos
         if int((self.get_clock().now() - self.start_time).nanoseconds * 1e-9) % 2 == 0:
             # self.get_logger().info("Error de distancia aceptable, verificando gaussianidad.")
             self.check_gaussianity()
@@ -149,10 +149,10 @@ class BeaconParticleFilter(Node):
 
         # self.get_logger().info("Test de normalidad por dimensión (stat, p): " + str(results))
         # self.get_logger().info("P valor: " + str(p))
-        # Puedes definir un umbral de p-valor típico (ej. 0.05)
+
         all_gaussian = all(p > 0.09 for (_, p) in results)
         if all_gaussian:
-            self.get_logger().info("⚠️ La distribución de partículas parece gaussiana.")
+            # self.get_logger().info("⚠️ La distribución de partículas parece gaussiana.")
             
             self.msg_ekf = PoseWithCovarianceStamped()
             self.msg_ekf.header.stamp = self.get_clock().now().to_msg()

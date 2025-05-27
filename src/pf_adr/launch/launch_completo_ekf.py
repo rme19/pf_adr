@@ -1,20 +1,5 @@
 #!/usr/bin/env python3
-# Copyright 2023 Georg Novotny
-#
-# Licensed under the GNU GENERAL PUBLIC LICENSE, Version 3.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     https://www.gnu.org/licenses/gpl-3.0.en.html
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import os
-
 import yaml
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -98,7 +83,7 @@ def generate_launch_description():
                 executable='particle_filter_node_ekf',
                 name=f'particle_filter_node_{i}',
                 parameters=[{
-                    'total_num_particles': 1000,
+                    'num_particles': 5000,
                     'sigma': 0.1,
                     'noise_std': 0.1,
                     'radius': 1.0,
@@ -122,12 +107,6 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument(
-            'num_beacons',
-            default_value='5',
-            description='Número total de balizas esperadas'
-        ),
-
-        DeclareLaunchArgument(
             "controller",
             default_value="keyboard",
             description="Type of controller: keyboard (default) or joystick",
@@ -143,7 +122,6 @@ def generate_launch_description():
             function=rviz_node_generator,
             kwargs={'rviz_path': rviz_path},
         ),
-
 
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(

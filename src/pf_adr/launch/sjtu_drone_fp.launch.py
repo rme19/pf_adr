@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-# Copyright 2023 Georg Novotny
-
 import os
 import random
 import yaml
-
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, OpaqueFunction, TimerAction
@@ -65,20 +62,14 @@ def generate_launch_description():
     # Generar balizas aleatorias
     spawn_beacons_actions = []
     num_beacons = 3  # Número de balizas a generar
-    # Obtener la ruta del modelo de la baliza
-
-
+   
     model_path = os.path.join(
         get_package_share_directory('pf_adr'),
         'models',
         'beacon.sdf'
     )
     # Generar posiciones aleatorias para las balizas
-    # y crear acciones de spawn
     for i in range(num_beacons):
-        # x = random.uniform(-10.0, 10.0)
-        # y = random.uniform(-10.0, 10.0)
-        # z = random.uniform(0.5, 3.0)
         if random.random() < 0.5:
             x = random.uniform(-10.0, -4.0)
         else:
@@ -118,7 +109,6 @@ def generate_launch_description():
                 output='screen'
             )
         )
-
 
     return LaunchDescription([
         world,

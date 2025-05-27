@@ -3,17 +3,13 @@ import matplotlib.pyplot as plt
 import os
 import glob
 
-# ------------------------------
-# RUTAS Y CARGA DE ARCHIVOS
-# ------------------------------
+
 log_dir = os.path.expanduser('~/pf_logs')
 beacon_ref_path = os.path.join(log_dir, 'beacon_positions.csv')
 csv_files = sorted(glob.glob(os.path.join(log_dir, 'pf_means_*.csv')))
 
 # Datos de referencia
 beacon_refs = pd.read_csv(beacon_ref_path, index_col='beacon_id')
-
-
 
 # Cargar estimaciones de cada baliza
 dfs = []
@@ -29,11 +25,9 @@ for file in csv_files:
     dfs.append(df)
     beacon_ids.append(beacon_id)
 
-# ------------------------------
-# FIGURAS INDIVIDUALES POR BALIZA
-# ------------------------------
+
 for df, beacon_id in zip(dfs, beacon_ids):
-    fig, axs = plt.subplots(4, 1, figsize=(10, 12))  # Quita sharex=True
+    fig, axs = plt.subplots(4, 1, figsize=(10, 12)) 
     timestamps = df['timestamp'].to_numpy()
     x = df['x_mean'].to_numpy()
     y = df['y_mean'].to_numpy()
@@ -55,7 +49,7 @@ for df, beacon_id in zip(dfs, beacon_ids):
     axs[0].legend()
     axs[0].grid(True)
 
-    # --- Filtrar últimos 10 segundos ---
+    # Filtrar últimos 10 segundos
     last_time = timestamps[-1]
     mask = timestamps >= (last_time - 10)
     t10 = timestamps[mask]
@@ -88,11 +82,8 @@ for df, beacon_id in zip(dfs, beacon_ids):
     plt.tight_layout()
     plt.show()
 
-# ------------------------------
-# FIGURA GENERAL: TODAS LAS BALIZAS
-# ------------------------------
-# Crear subplots dinámicamente, uno más de los dfs que tienes
-num_plots = len(dfs)  # +1 subplot extra
+# Crear subplots dinámicamente
+num_plots = len(dfs) 
 
 fig, axs = plt.subplots(num_plots, 1, figsize=(10, 4 * num_plots), sharex=True)
 

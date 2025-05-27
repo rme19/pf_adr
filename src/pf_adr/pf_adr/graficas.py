@@ -3,9 +3,7 @@ import matplotlib.pyplot as plt
 import os
 import glob
 
-# ------------------------------
-# RUTAS Y CARGA DE ARCHIVOS
-# ------------------------------
+
 log_dir = os.path.expanduser('~/pf_logs')
 beacon_ref_path = os.path.join(log_dir, 'beacon_positions.csv')
 particle_dist_path = os.path.join(log_dir, 'pf_particles.csv')
@@ -31,11 +29,8 @@ for file in csv_files:
     dfs.append(df)
     beacon_ids.append(beacon_id)
 
-# ------------------------------
-# FIGURAS INDIVIDUALES POR BALIZA
-# ------------------------------
 for df, beacon_id in zip(dfs, beacon_ids):
-    fig, axs = plt.subplots(4, 1, figsize=(10, 12))  # Quita sharex=True
+    fig, axs = plt.subplots(4, 1, figsize=(10, 12)) 
     timestamps = df['timestamp'].to_numpy()
     x = df['x_mean'].to_numpy()
     y = df['y_mean'].to_numpy()
@@ -57,7 +52,7 @@ for df, beacon_id in zip(dfs, beacon_ids):
     axs[0].legend()
     axs[0].grid(True)
 
-    # --- Filtrar últimos 10 segundos ---
+    # Filtrar últimos 10 segundos
     last_time = timestamps[-1]
     mask = timestamps >= (last_time - 10)
     t10 = timestamps[mask]
@@ -90,11 +85,8 @@ for df, beacon_id in zip(dfs, beacon_ids):
     plt.tight_layout()
     plt.show()
 
-# ------------------------------
-# FIGURA GENERAL: TODAS LAS BALIZAS
-# ------------------------------
-# Crear subplots dinámicamente, uno más de los dfs que tienes
-num_plots = len(dfs) + 1  # +1 subplot extra
+# Crear subplots dinámicamente, 
+num_plots = len(dfs) + 1 
 
 fig, axs = plt.subplots(num_plots, 1, figsize=(10, 4 * num_plots), sharex=True)
 if num_plots == 1:
@@ -107,15 +99,12 @@ for i, (df, beacon_id) in enumerate(zip(dfs, beacon_ids)):
     y = df['y_mean'].to_numpy()
     z = df['z_mean'].to_numpy()
 
-
-
     axs[i].plot(timestamps, x, label='X estimado',color='r') 
     axs[i].plot(timestamps, y, label='Y estimado', color='g')
     axs[i].plot(timestamps, z, label='Z estimado', color='b')
 
     # Referencias reales de la baliza
     ref = beacon_refs.loc[beacon_id]
-
 
     axs[i].hlines(ref['x'], timestamps[0], timestamps[-1], colors='r', linestyles='dashed', label='X ref')
     axs[i].hlines(ref['y'], timestamps[0], timestamps[-1], colors='g', linestyles='dashed', label='Y ref')
@@ -124,11 +113,10 @@ for i, (df, beacon_id) in enumerate(zip(dfs, beacon_ids)):
     axs[i].set_title(f'Beacon {beacon_id} - Posición estimada vs referencia')
     axs[i].legend()
     axs[i].grid(True)
-
     
-# Graficar distribución de partículas en el subplot extra
+# Graficar distribución de partículas
 timestamps = pd.to_numeric(particle_df['timestamp']).to_numpy()
-colors = ['r', 'g', 'b']  # Puedes ampliar esta lista si tienes más balizas
+colors = ['r', 'g', 'b'] 
 
 for idx, col in enumerate(particle_df.columns):
     if col != 'timestamp':

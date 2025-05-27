@@ -41,7 +41,7 @@ class BeaconParticleFilter(Node):
 
         # Creación de directorio y archivo CSV
         now = datetime.now().strftime('%Y%m%d_%H%M%S')
-        log_dir = os.path.expanduser('~/pf_logs')  # Asegúrate de que este directorio sea correcto
+        log_dir = os.path.expanduser('~/pf_logs') 
         os.makedirs(log_dir, exist_ok=True)  # Crear la carpeta si no existe
         self.csv_path = os.path.join(log_dir, f'pf_means_{self.beacon_id}.csv')
 
@@ -177,7 +177,7 @@ class BeaconParticleFilter(Node):
         msg.pose.position.z = mean[2]
         msg.pose.orientation.w = 1.0
         self.pose_pub.publish(msg)
-        self.estimated_position = mean  # <--- Renombrado aquí
+        self.estimated_position = mean 
 
         # Guardar en el CSV
         elapsed_time = (self.get_clock().now() - self.start_time).nanoseconds * 1e-9
@@ -213,13 +213,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-# This code is a ROS2 node that implements a particle filter for a beacon.
-# It subscribes to the drone's odometry and the distance to the target,         
-# and publishes the estimated position of the beacon and the particles.
-# The node initializes particles, updates their weights based on the distance,
-# resamples them if necessary, and publishes the estimated position and particles.
-# The node also handles the distribution of particles based on the number of active beacons.
-# The code uses numpy for numerical operations and ROS2 for communication.
-# The node is designed to be part of a larger system for drone navigation and localization.
-# It includes methods for initializing particles, updating the filter, and publishing results.
-# The node is initialized with parameters for the number of particles, noise, and radius.

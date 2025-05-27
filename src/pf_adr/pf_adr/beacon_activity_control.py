@@ -52,7 +52,7 @@ class BeaconActivityMonitor(Node):
 
     def distance_callback(self, msg, beacon_id):
         if 0.0 < msg.data < 10.0 and msg.data != float('inf'):
-            self.last_seen[beacon_id] = self.get_clock().now().nanoseconds * 1e-9  # Usa tiempo ROS2
+            self.last_seen[beacon_id] = self.get_clock().now().nanoseconds * 1e-9 
 
     def check_active_beacons(self):
         now = self.get_clock().now().nanoseconds * 1e-9
@@ -81,7 +81,6 @@ class BeaconActivityMonitor(Node):
             for i in active_ids:
                 distribution[i] = per_beacon
 
-        # Publicar distribución de partículas 
         msg_dist = Int32MultiArray()
         msg_dist.data = distribution
         self.publisher_distribution.publish(msg_dist)

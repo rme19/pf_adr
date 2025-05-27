@@ -42,16 +42,14 @@ class BeaconParticleFilter(Node):
         self.name_fichero = ('archivo_csv_' + str(self.beacon_id))
         # Creación de directorio y archivo CSV
         now = datetime.now().strftime('%Y%m%d_%H%M%S')
-        log_dir = os.path.expanduser('~/pf_logs')  # Asegúrate de que este directorio sea correcto
+        log_dir = os.path.expanduser('~/pf_logs')  
         os.makedirs(log_dir, exist_ok=True)  # Crear la carpeta si no existe
         self.csv_path = os.path.join(log_dir, f'pf_means_{self.beacon_id}.csv')
-
 
         # Crear y abrir el archivo CSV
         self.csv_file = open(self.csv_path, mode='w', newline='')
         self.csv_writer = csv.writer(self.csv_file)
         self.csv_writer.writerow(['timestamp', 'x_mean', 'y_mean', 'z_mean'])
-
 
         self.particles = self.initialize_particles2()
         self.weights = np.ones(self.num_particles) / self.num_particles

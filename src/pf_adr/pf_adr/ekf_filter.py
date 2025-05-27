@@ -32,7 +32,7 @@ class EKFBeaconNode(Node):
         self.est_pub = self.create_publisher(PoseWithCovarianceStamped, f'/beacon_{self.beacon_id}/ekf_beacon_estimate', 10)
 
         # Creación de directorio y archivo CSV
-        log_dir = os.path.expanduser('~/pf_logs')  # Asegúrate de que este directorio sea correcto
+        log_dir = os.path.expanduser('~/pf_logs') 
         os.makedirs(log_dir, exist_ok=True)  # Crear la carpeta si no existe
         self.csv_path = os.path.join(log_dir, f'pf_means_ekf_{self.beacon_id}.csv')
 
@@ -90,7 +90,7 @@ class EKFBeaconNode(Node):
             dist = 1e-6  # evitar división por cero
         H = delta.reshape(1, 3) / dist  # 1x3
 
-        # Predicción (trivial porque la baliza es estática)
+        # Predicción (es estática)
         x_pred = self.x
         Sigma_pred = self.Sigma + self.Q
 

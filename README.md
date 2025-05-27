@@ -5,6 +5,11 @@ Este paquete de ROS2 ha sido creado para implementar un filtro de partículas pa
 - Filtro de partículas "smart": este filtro también lanza un filtro de partículas por cada baliza, pero recibe información sobre el número de balizas activas que hay en cada momento, permitiendo mantener un número constante de partículas en general, es decir, la suma de las partículas de todos los nodos es constante.
 - Filtro de partículas con EKF: por último, se ha creado un filtro de partículas, basado en el filtro de partículas básico, que realiza pruebas de gausianidad sobre la nube de partículas y, cuando supera un cierto umbral, aproxima la nube de partículas por una media y una matriz de covarianza. Estos datos se le pasan a un nodo que implementa un EKF, permitiendo reducir el coste computacional. El EKF continuará estimando la posición de la baliza con el dato que ha recibido del PF. 
 
+Se ha creado una carpeta compartida de Drive donde se pueden encontrar grabaciones y capturas de pantalla de los resultados obtenidos con cada filtro: 
+```Terminal
+https://drive.google.com/drive/folders/1R675cugDEPXwAdzKYmMFq00smihU1Ul_?usp=drive_link
+```
+
 ## Instalación:
 Primero crearemos un workspace y una carpeta *src*:
 ```Terminal
